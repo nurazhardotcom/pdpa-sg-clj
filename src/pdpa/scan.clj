@@ -10,6 +10,14 @@
             [clojure.string  :as str]
             [pdpa.nric      :as nric]))
 
+;; -------------------------------------------------------------------------
+;; Forward declaration:  parse-rg-match is referenced by `rg-line-seq-bb`,
+;; `rg-line-seq-jvm`, and `rg-line-seq`, then defined further below.
+;; The forward `declare` makes the symbol analyzable to SCI; the body
+;; below is unchanged.
+;; -------------------------------------------------------------------------
+(declare parse-rg-match)
+
 ;; ---------------------------------------------------------------------
 ;; Severity classification rules
 ;; ---------------------------------------------------------------------
@@ -95,7 +103,9 @@
                                      path)]
     (->> (:out result)
          str/split-lines
-         (keep parse-rg-match))))
+         (keep #'parse-rg-match))))
+
+(defn- parse-rg-match
   [line]
   (try
     (let [d (json/parse-string line true)
@@ -107,16 +117,22 @@
     (catch Exception _ nil)))
 
 (defn- rg-line-seq-jvm [path]
-  (let [pb   (doto (ProcessBuilder.
-                     ["rg" "--no-heading" "--line-number"
-                      "--no-ignore" "--json" "." path])
-               (.redirectError ProcessBuilder$Redirect/INHERIT))
+  ;; SCI/Babashka cannot resolve the inner-class static-field syntax
+  ;; `ProcessBuilder$Redirect/INHERIT` at analyze time, so we reach for
+  ;; the field by reflection. In JVM Clojure this is identical to the
+  ;; static-field access; just one extra indirection.
+  (let [redirect-field (.get (Class/forName "java.lang.ProcessBuilder$Redirect")
+                             "INHERIT" nil)
+        pb   (doto (ProcessBuilder.
+                       ["rg" "--no-heading" "--line-number"
+                        "--no-ignore" "--json" "." path])
+               (.redirectError redirect-field))
         proc (.start pb)
         in   (java.io.BufferedReader.
                 (java.io.InputStreamReader.
                   (.getInputStream proc)))]
     (try
-      (->> (line-seq in) (keep parse-rg-match))
+      (->> (line-seq in) (keep #'parse-rg-match))
       (finally
         (try (.close in) (catch Exception _))
         (try (.waitFor proc 5 java.util.concurrent.TimeUnit/SECONDS)
@@ -133,7 +149,7 @@
                                        "--json"
                                        "."
                                        path)]
-      (->> (:out result) str/split-lines (keep parse-rg-match)))
+      (->> (:out result) str/split-lines (keep #'parse-rg-match)))
     (catch Exception _
       (try (rg-line-seq-jvm path)
            (catch Exception e

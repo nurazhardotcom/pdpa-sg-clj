@@ -28,6 +28,13 @@
   audit
   ((requiring-resolve 'pdpa.audit/run) *command-line-args*)
 
+  shipit
+  ;; pdpa.shipit/run returns a verdict map; this thin shim is the only
+  ;; thing that exits. Matches the codebase's "REPL-friendly namespaces,
+  ;; CLI-shells exit" principle.
+  (let [v ((requiring-resolve 'pdpa.shipit/run) *command-line-args*)]
+    (System/exit (if (= "SHIP" (:verdict v)) 0 1)))
+
   dpo
   ((requiring-resolve 'pdpa.policy/dpo) *command-line-args*)
 

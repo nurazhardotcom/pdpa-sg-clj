@@ -2,7 +2,8 @@
   "Loads policy templates from resources/policies/ and substitutes
   `<<KEY>>` placeholders with caller-supplied values. Zero magic — just
   clojure.string/replace, keep it boring and easy to audit."
-  (:require [clojure.string :as str]
+  (:require [babashka.cli    :as cli]
+            [clojure.string  :as str]
             [clojure.java.io :as io]))
 
 (def ^:private policy-dir "policies/")
@@ -45,7 +46,6 @@
 (defn dpo
   "Generate a DPO contact page. CLI arg: [name email]"
   [args]
-  (require '[babashka.cli :as cli])
   (let [opts   (cli/parse-opts args [["-n" "--name NAME" "DPO full name"]
                                        ["-e" "--email EMAIL" "DPO business email"]])
         name   (or (:name opts)   "Data Protection Officer")

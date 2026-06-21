@@ -34,15 +34,18 @@
   (let [target (or (first args) ".")
         tgt    (io/file target)
         _      (fs/create-dirs tgt)]
-    ;; Copy the master checklist, README and ARCHITECTURE
+    ;; Copy the master checklist, README and ARCHITECTURE.
+    ;; These live at the project root (not `resources/`), so we use a
+    ;; CWD-relative path instead of `io/resource` (which requires the
+    ;; file to be on the classpath jar/resource path).
     (safe-copy
-      (io/file (io/resource "CHECKLIST.md"))
+      (io/file "CHECKLIST.md")
       (io/file target "PDPA_CHECKLIST.md"))
     (safe-copy
-      (io/file (io/resource "ARCHITECTURE.md"))
+      (io/file "ARCHITECTURE.md")
       (io/file target "PDPA_ARCHITECTURE.md"))
     (safe-copy
-      (io/file (io/resource "README.md"))
+      (io/file "README.md")
       (io/file target "PDPA_README.md"))
     ;; Copy each policy template (rename .template.md → .md)
     (let [templates (policy/list-templates)
