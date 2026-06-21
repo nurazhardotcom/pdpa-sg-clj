@@ -46,6 +46,36 @@
    (fn [{:keys [evidence]}]
      (boolean (some #(= "DPO_CONTACT" %) evidence)))})
 
+(def ^:private obligation-order
+  {:consent 1
+   :purpose 2
+   :notification 3
+   :accuracy 4
+   :protection 5
+   :retention 6
+   :transfer 7
+   :access 8
+   :withdrawal 9
+   :breach 10
+   :dpo 11})
+
+(defn- heading->obligation-key [heading]
+  (let [m (re-find #"##\s+(\d+)\." heading)
+        num (when m (Integer/parseInt (second m)))]
+    (case num
+      1 :consent
+      2 :purpose
+      3 :notification
+      4 :accuracy
+      5 :protection
+      6 :retention
+      7 :transfer
+      8 :access
+      9 :withdrawal
+      10 :breach
+      11 :dpo
+      nil)))
+
 ;; ---------------------------------------------------------------------
 ;; Auto-tick signature line:  "<!-- agent:verify-protection -->"
 ;; Marker keyword = protection. Maps to (verifiers :protection ctx).
@@ -79,8 +109,7 @@
           (cond
             ;; H2 heading starts a new obligation
             (str/starts-with? trimmed "## ")
-            (let [ob (let [m (re-find #"##\s+\d+\.\s+([A-Za-z ]+)" trimmed)]
-                       (when m (some-> m second str/lower-case keyword)))]
+            (let [ob (heading->obligation-key trimmed)]
               (recur rest
                      ob
                      false
@@ -101,7 +130,7 @@
               (recur rest
                      current-obligation
                      false
-                     (conj! output (str/replace line "- [ ]" "- [x]" 1))))
+                     (conj! output (str/replace-first line "- [ ]" "- [x]"))))
 
             ;; Default: pass through untouched
             :else
@@ -124,21 +153,24 @@
                    (let [l (str/triml (first ls))]
                      (cond
                        (str/starts-with? l "## ")
-                       (let [m     (re-find #"##\s+\d+\.\s+([A-Za-z ]+)" l)
-                             key  (some-> m second str/lower-case keyword)]
-                         (recur (rest ls) key (assoc acc key {:ticked 0 :total 0 :manual 0})))
+                       (let [key (heading->obligation-key l)]
+                         (recur (rest ls) key (if key (assoc acc key {:ticked 0 :total 0 :manual 0}) acc)))
 
                        (str/includes? l "- [x]")
                        (recur (rest ls) current
-                              (-> acc
-                                  (update-in [current :ticked] inc)
-                                  (update-in [current :total]  inc)))
+                              (if current
+                                (-> acc
+                                    (update-in [current :ticked] inc)
+                                    (update-in [current :total]  inc))
+                                acc))
 
                        (str/includes? l "- [ ]")
                        (recur (rest ls) current
-                              (-> acc
-                                  (update-in [current :total]  inc)
-                                  (update-in [current :manual] inc)))
+                              (if current
+                                (-> acc
+                                    (update-in [current :total]  inc)
+                                    (update-in [current :manual] inc))
+                                acc))
 
                        :else
                        (recur (rest ls) current acc)))))]
@@ -158,15 +190,11 @@
     (println "[CHECKLIST] Singapore PDPA compliance status")
     (println (format "  %-30s %-8s %s" "Obligation" "Status" "Progress"))
     (println (apply str (repeat 60 "-")))
-    (doseq [[k v] (sort-by (fn [[k _]]
-                             (Integer/parseInt
-                              (or (str (re-find #"\d+" (name k)))
-                                  "99")))
-                           st)]
+    (doseq [[k v] (sort-by (fn [[k _]] (obligation-order k 99)) st)]
       (println (format "  %-30s %-8s %d/%d"
                        (clojure.string/capitalize (clojure.string/replace (name k) #"-" " "))
                        (:status v)
                        (:ticked v) (:total v))))
-    (let [ok    (count (filter #(= "OK" (val (first %))) st))
+    (let [ok    (count (filter (fn [[_ v]] (= "OK" (:status v))) st))
           total (count st)]
       (println (format "[OK] %d/%d obligations satisfied" ok total)))))

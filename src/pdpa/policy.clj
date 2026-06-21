@@ -19,24 +19,24 @@
        vec))
 
 (defn fill
-  "Read template `name` and substitute every `<<KEY>>` with `values`.
+  "Read template `template-name` and substitute every `<<KEY>>` with `values`.
   Returns the filled markdown content as a string."
-  [name values]
-  (let [resource-url (io/resource (str policy-dir name))
+  [template-name values]
+  (let [resource-url (io/resource (str policy-dir template-name))
         _             (when-not resource-url
-                        (throw (ex-info (str "template not found: " name)
-                                        {:name name})))
+                        (throw (ex-info (str "template not found: " template-name)
+                                        {:name template-name})))
         content       (slurp resource-url)]
-    (reduce-kv (fn [t k v] (str/replace t (str "<<" (name k) ">>") (str v)))
+    (reduce-kv (fn [t k v] (str/replace t (str "<<" (clojure.core/name k) ">>") (str v)))
                content
                values)))
 
 (defn fill-and-write!
-  "Fill template `name` and write to `out-path`. Returns the out-path."
-  [name values out-path]
+  "Fill template `template-name` and write to `out-path`. Returns the out-path."
+  [template-name values out-path]
   (let [parent (.getParentFile (io/file out-path))]
     (when parent (.mkdirs parent)))
-  (spit out-path (fill name values))
+  (spit out-path (fill template-name values))
   out-path)
 
 ;; ---------------------------------------------------------------------

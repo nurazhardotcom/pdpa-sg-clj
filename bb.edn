@@ -41,11 +41,13 @@
   test
   ;; (clojure.test) is on the BB classpath via babashka; run-tests returns
   ;; a results map.  We exit with non-zero if any test failed or errored.
-  (let [results ((requiring-resolve 'clojure.test/run-tests)
-                 'pdpa.nric-test
-                 'pdpa.redact-test
-                 'pdpa.checklist-test
-                 'pdpa.scan-test)]
-    (System/exit (if (and (zero? (:fail results))
-                          (zero? (:error results)))
-                   0 1)))}}
+  (do
+    (require 'pdpa.nric-test 'pdpa.redact-test 'pdpa.checklist-test 'pdpa.scan-test)
+    (let [results ((requiring-resolve 'clojure.test/run-tests)
+                   'pdpa.nric-test
+                   'pdpa.redact-test
+                   'pdpa.checklist-test
+                   'pdpa.scan-test)]
+      (System/exit (if (and (zero? (:fail results))
+                            (zero? (:error results)))
+                     0 1))))}}

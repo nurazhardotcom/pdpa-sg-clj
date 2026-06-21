@@ -34,7 +34,7 @@
 (def nric-re
   ;; Singapore NRIC (citizens / PRs): \b S/T/F/G + 7 digits + check letter
   ;; FIN     (foreigners):           \b M       + 7 digits + check letter
-  #"(?i)\b[STFG]\d{7}[A-Z]\b")
+  #"(?i)\b[STFGM]\d{7}[A-Z]\b")
 
 (def ^:private citizen-chars  "JZIHGFEDCBA")  ; S / T
 (def ^:private foreigner-chars "XWUTRQPNKLM") ; F / G / M
@@ -78,7 +78,7 @@
   [s]
   (when-let [computed (check-digit s)]
     (let [provided (str/upper-case (str (last s)))]
-      (= computed provided))))
+      (= (str computed) provided))))
 
 (defn find-valid-nrics
   "Returns a vector of NRIC/FIN strings in `s` whose Mod-11 checksum is

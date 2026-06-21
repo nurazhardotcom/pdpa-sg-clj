@@ -56,7 +56,10 @@
   ([text placeholders]
    (let [nrics     (nric/find-valid-nrics (str (or text "")))
          phones    (vec (distinct (re-seq phone-re (str (or text "")))))
-         emails    (vec (distinct (re-seq email-re (str (or text "")))))
+         emails    (->> (re-seq email-re (str (or text "")))
+                        (remove #(re-find #"@example\.(com|org|net)$" %))
+                        distinct
+                        vec)
          warnings  []
          step      (-> (str (or text ""))
                        (replace-all nrics  (get placeholders :nric  "[REDACTED_NRIC]"))
