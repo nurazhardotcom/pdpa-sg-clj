@@ -1,0 +1,44 @@
+;; pdpa-sg-clj — Babashka tasks
+;;
+;; `:paths` gives BB direct access to src/, resources/, and test/ — same
+;; view as the Clojure CLI dev alias.  Tasks use `requiring-resolve` to
+;; defer symbol resolution to runtime (so each task loads only what it
+;; needs at the moment of invocation).
+
+{:min-bb-version "1.4.0"
+
+ :paths ["src" "resources" "test"]
+
+ :tasks
+ {about
+  ((requiring-resolve 'pdpa.version/print-stamp))
+
+  init
+  ((requiring-resolve 'pdpa.init/run) *command-line-args*)
+
+  scan
+  ((requiring-resolve 'pdpa.scan/run) *command-line-args*)
+
+  redact
+  ((requiring-resolve 'pdpa.redact/run) *command-line-args*)
+
+  checklist
+  ((requiring-resolve 'pdpa.checklist/run) *command-line-args*)
+
+  audit
+  ((requiring-resolve 'pdpa.audit/run) *command-line-args*)
+
+  dpo
+  ((requiring-resolve 'pdpa.policy/dpo) *command-line-args*)
+
+  test
+  ;; (clojure.test) is on the BB classpath via babashka; run-tests returns
+  ;; a results map.  We exit with non-zero if any test failed or errored.
+  (let [results ((requiring-resolve 'clojure.test/run-tests)
+                 'pdpa.nric-test
+                 'pdpa.redact-test
+                 'pdpa.checklist-test
+                 'pdpa.scan-test)]
+    (System/exit (if (and (zero? (:fail results))
+                          (zero? (:error results)))
+                   0 1)))}}
