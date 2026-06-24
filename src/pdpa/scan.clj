@@ -94,13 +94,14 @@
 ;;   - JVM Clojure fallback: launches rg via ProcessBuilder.
 
 (defn- rg-line-seq-bb [path]
-  (let [result (babashka.process/sh "rg"
-                                     "--no-heading"
-                                     "--line-number"
-                                     "--no-ignore"
-                                     "--json"
-                                     "."
-                                     path)]
+  (let [sh (requiring-resolve 'babashka.process/sh)
+        result (sh "rg"
+                   "--no-heading"
+                   "--line-number"
+                   "--no-ignore"
+                   "--json"
+                   "."
+                   path)]
     (->> (:out result)
          str/split-lines
          (keep #'parse-rg-match))))
@@ -121,8 +122,7 @@
   ;; `ProcessBuilder$Redirect/INHERIT` at analyze time, so we reach for
   ;; the field by reflection. In JVM Clojure this is identical to the
   ;; static-field access; just one extra indirection.
-  (let [redirect-field (.get (Class/forName "java.lang.ProcessBuilder$Redirect")
-                             "INHERIT" nil)
+  (let [redirect-field java.lang.ProcessBuilder$Redirect/INHERIT
         pb   (doto (ProcessBuilder.
                        ["rg" "--no-heading" "--line-number"
                         "--no-ignore" "--json" "." path])
@@ -132,7 +132,7 @@
                 (java.io.InputStreamReader.
                   (.getInputStream proc)))]
     (try
-      (->> (line-seq in) (keep #'parse-rg-match))
+      (->> (line-seq in) (keep #'parse-rg-match) doall)
       (finally
         (try (.close in) (catch Exception _))
         (try (.waitFor proc 5 java.util.concurrent.TimeUnit/SECONDS)
@@ -141,14 +141,14 @@
 
 (defn- rg-line-seq [path]
   (try
-    (require 'babashka.process)
-    (let [result (babashka.process/sh "rg"
-                                       "--no-heading"
-                                       "--line-number"
-                                       "--no-ignore"
-                                       "--json"
-                                       "."
-                                       path)]
+    (let [sh (requiring-resolve 'babashka.process/sh)
+          result (sh "rg"
+                     "--no-heading"
+                     "--line-number"
+                     "--no-ignore"
+                     "--json"
+                     "."
+                     path)]
       (->> (:out result) str/split-lines (keep #'parse-rg-match)))
     (catch Exception _
       (try (rg-line-seq-jvm path)
