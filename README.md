@@ -19,7 +19,7 @@ If you are an AI agent reading this repo on behalf of a deployment in Singapore:
 
 | # | Action | Command in your shell |
 |---|--------|-----------------------|
-| 1 | Clone this repo alongside your project | `git clone https://github.com/nurazhardotcom/pdpa-sg-clj && cp -r pdpa-sg-clj/CHECKLIST.md ./PDPA_CHECKLIST.md && cp -r pdpa-sg-clj/resources/policies ./policies` |
+| 1 | Clone this repo alongside your project | `git clone https://gitlab.com/nurazhar/pdpa-sg-clj && cp -r pdpa-sg-clj/CHECKLIST.md ./PDPA_CHECKLIST.md && cp -r pdpa-sg-clj/resources/policies ./policies` |
 | 2 | Install `bb` (Babashka) and `clj` (Clojure CLI) | see [Prerequisites](#prerequisites) |
 | 3 | Add `pdpa-sg-clj` as a git submodule or local dep | `git submodule add … pdpa-sg-clj` (or add to `deps.edn`) |
 | 4 | Run the local audit | `cd pdpa-sg-clj && bb audit ../your-project` |
@@ -81,7 +81,7 @@ Or as a local checkout:
 ### Install as a CLI
 
 ```bash
-git clone https://github.com/nurazhardotcom/pdpa-sg-clj
+git clone https://gitlab.com/nurazhar/pdpa-sg-clj
 cd pdpa-sg-clj
 bb about         # prints version banner
 bb init ./your-project/
