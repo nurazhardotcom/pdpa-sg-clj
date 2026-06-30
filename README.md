@@ -1,5 +1,9 @@
 # pdpa-sg-clj 🇸🇬🛡️
 
+[![CI](https://github.com/nurazhardotcom/pdpa-sg-clj/actions/workflows/ci.yml/badge.svg)](https://github.com/nurazhardotcom/pdpa-sg-clj/actions/workflows/ci.yml)
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
+
+
 > **Singapore PDPA compliance toolkit for AI agents — read this README top-to-bottom, tick the checklist, you're done.**
 
 ``` clojure
