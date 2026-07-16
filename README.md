@@ -1,8 +1,10 @@
 # pdpa-sg-clj 🇸🇬🛡️
 
+[![Latest Release](https://gitlab.com/nurazhar/pdpa-sg-clj/-/badges/release.svg)](https://gitlab.com/nurazhar/pdpa-sg-clj/-/releases)
 [![CI](https://github.com/nurazhardotcom/pdpa-sg-clj/actions/workflows/ci.yml/badge.svg)](https://github.com/nurazhardotcom/pdpa-sg-clj/actions/workflows/ci.yml)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
 
+`pdpa-sg-clj v0.2.0` · Last verified 2026-07-16 · MIT ©2026 Nur Azhar
 
 > **Singapore PDPA compliance toolkit for AI agents — read this README top-to-bottom, tick the checklist, you're done.**
 
