@@ -50,7 +50,7 @@
     :sev     :high
     :match-fn (fn [text _path] (re-find #"sk_live_[A-Za-z0-9]{16,}" text))}
 
-   {:id      :github-token
+   {:id      :pat-token
     :label   "GitHub personal access token"
     :sev     :high
     :match-fn (fn [text _path] (re-find #"ghp_[A-Za-z0-9]{36}" text))}

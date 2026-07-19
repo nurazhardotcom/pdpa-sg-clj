@@ -1,0 +1,10 @@
+stages:
+  - test
+
+test:
+  stage: test
+  image: babashka/babashka:latest
+  before_script:
+    - apt-get update && apt-get install -y ripgrep
+  script:
+    - bb test
