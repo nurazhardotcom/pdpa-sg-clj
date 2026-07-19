@@ -1,7 +1,7 @@
 # pdpa-sg-clj 🇸🇬🛡️
 
 [![Latest Release](https://gitlab.com/nurazhar/pdpa-sg-clj/-/badges/release.svg)](https://gitlab.com/nurazhar/pdpa-sg-clj/-/releases)
-[![CI](https://github.com/nurazhardotcom/pdpa-sg-clj/actions/workflows/ci.yml/badge.svg)](https://github.com/nurazhardotcom/pdpa-sg-clj/actions/workflows/ci.yml)
+[![CI](https://gitlab.com/nurazhar/pdpa-sg-clj/badges/main/pipeline.svg)](https://gitlab.com/nurazhar/pdpa-sg-clj/-/pipelines)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
 
 `pdpa-sg-clj v0.2.0` · Last verified 2026-07-16 · MIT ©2026 Nur Azhar
@@ -65,7 +65,7 @@ This repo ships a checklist (above), a scanner, a redactor, six policy templates
 
 | Tool | Why | Install |
 |------|-----|---------|
-| **Babashka ≥ 1.4** | Runs all `bb` tasks (no JVM startup) | `brew install babashka` / Linux: [github.com/babashka/babashka](https://github.com/babashka/babashka) |
+| **Babashka ≥ 1.4** | Runs all `bb` tasks (no JVM startup) | `brew install babashka` / Linux: [babashka.org](https://babashka.org) |
 | **Clojure CLI ≥ 1.12** | Runs the library tests | [clojure.org/guides/install_clojure](https://clojure.org/guides/install_clojure) |
 | **ripgrep (`rg`)** | Scanner backend | `apt install ripgrep` / `brew install ripgrep` |
 
@@ -74,7 +74,8 @@ This repo ships a checklist (above), a scanner, a redactor, six policy templates
 Add to your `deps.edn`:
 
 ```clojure
-{:deps {nurazhardotcom/pdpa-sg-clj {:git/tag "v0.1.0" :git/sha "PINNED-SHA"}}}
+{:deps {pdpa/pdpa-sg-clj {:git/url "https://gitlab.com/nurazhar/pdpa-sg-clj.git"
+                           :git/tag "v0.2.0"}}}
 ```
 
 Or as a local checkout:
@@ -189,6 +190,7 @@ pdpa-sg-clj/
 ├── LICENSE                            ← MIT
 ├── deps.edn                           ← Clojure deps
 ├── bb.edn                             ← Babashka tasks (CLI surface)
+├── .gitlab-ci.yml                     ← GitLab CI pipeline
 ├── src/pdpa/
 │   ├── core.clj                       ← public API entry point
 │   ├── nric.clj                       ← NRIC/FIN regex + Mod-11 checksum
