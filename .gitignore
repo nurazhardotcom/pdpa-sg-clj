@@ -21,6 +21,34 @@ Thumbs.db
 # Local documentation reports
 CHECKLIST.local.md
 audit.local.json
+audit.json
+audit.md
 
 # Redact backups
 *.redact.bak
+*.redact.bak.*
+
+# Secrets & credentials
+.env
+.env.*
+*.pem
+*.key
+*.p12
+id_rsa
+id_ed25519
+credentials.json
+service-account.json
+*-secret.yaml
+*-secret.yml
+
+# PDPA compliance artifacts
+policies/PRIVACY_POLICY.md
+policies/DPO_CONTACT.md
+policies/CONSENT_FORM.md
+policies/DATA_BREACH_RESPONSE.md
+policies/DATA_TRANSFER_AGREEMENT.md
+policies/DPIA.md
+
+# CI artifacts
+public/
+
