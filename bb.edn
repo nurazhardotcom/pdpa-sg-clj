@@ -50,4 +50,26 @@
                    'pdpa.scan-test)]
       (System/exit (if (and (zero? (:fail results))
                             (zero? (:error results)))
-                     0 1))))}}
+                     0 1))))
+
+  blog-scan
+  ;; Scan a blog directory for PII before publishing to public site.
+  ;; Usage: bb blog-scan ~/Repositories/homepage
+  (let [result (babashka.process/shell {:dir "."
+                                        :out :capture
+                                        :err :inherit}
+                                       "bb" "scripts/blog-scan.bb"
+                                       (clojure.string/join " " *command-line-args*))]
+    (print (:out result))
+    (System/exit (:exit result)))
+
+  install-hook
+  ;; Copy the pre-commit hook into .git/hooks/
+  (do
+    (let [src (clojure.java.io/file "scripts/git-hooks/pre-commit")
+          dst (clojure.java.io/file ".git/hooks/pre-commit")]
+      (if (.exists src)
+        (do (clojure.java.io/copy src dst)
+            (.setExecutable dst true)
+            (println "✅ Pre-commit hook installed."))
+        (println "❌ scripts/git-hooks/pre-commit not found — run `bb init` first."))))}}
