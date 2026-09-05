@@ -113,7 +113,8 @@
           t (:type d)]
       (when (= "match" t)
         {:path (:path (:data d))
-         :text ((:lines (:data d)))
+         ;; data.lines is {"text" "..."} — extract the string, don't invoke it
+         :text (get-in d [:data :lines :text])
          :line (:line_number (:data d))}))
     (catch Exception _ nil)))
 
@@ -163,18 +164,31 @@
 (defn- classify [text path]
   (some #(when ((:match-fn %) text path) %) severity-rules))
 
+(def ignore-marker
+  "Lines containing this marker are excluded from findings.
+   Use for intentional documentation examples:
+     sed -i 's/S0466008B/S********G/g' ... # pdpa:ignore — fictional example
+   or in Markdown prose:
+     <!-- pdpa:ignore --> S0466008B is a fictional example value"
+  "pdpa:ignore")
+
+(defn- ignored? [text]
+  (str/includes? (or text "") ignore-marker))
+
 (defn scan
   "Walks `path` with ripgrep, classifies findings.
   Returns {:findings [...], :counts {:critical N :high N ...}, :clean? ...}."
   ([path]    (scan path {}))
-  ([path _]  ;; {:keys [quiet?]} ignored for now
-   (let [findings (keep (fn [{:keys [text path line]}]
-                          (when-let [rule (classify text path)]
-                            {:severity (:sev rule)
-                             :label    (:label rule)
-                             :path     path
-                             :line     line}))
-                        (rg-line-seq path))
+   ([path _]  ;; {:keys [quiet?]} ignored for now
+    (let [findings (keep (fn [{:keys [text path line]}]
+                           (when-not (ignored? text)
+                              (when-let [rule (classify text path)]
+                                {:severity (:sev rule)
+                                 :id       (:id rule)
+                                 :label    (:label rule)
+                                 :path     path
+                                 :line     line})))
+                         (rg-line-seq path))
          counts   (->> findings
                        (group-by :severity)
                        (reduce-kv (fn [m k v] (assoc m k (count v))) {}))
