@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `pdpa.scan/scan` silently returned zero findings: `parse-rg-match`
+  invoked the rg-JSON `lines` map as a function, dropping every match.
+  Now extracts `data.lines.text`. Caught by new tests that assert real
+  counts instead of result shape.
+- `pdpa:ignore` line-level exclusion marker for intentional documentation
+  examples (shell `# pdpa:ignore` or Markdown `<!-- pdpa:ignore -->`);
+  exclusion is per-line, never per-file.
+
+### Added
+- Rule `:id` included in every finding map (machine-readable key
+  alongside the human label).
+- `AI_DISCLOSURE.md` (AI assistance note, same convention as
+  `idira-audit-clj`).
+
 ## [0.2.0] - 2026-07-16
 
 ### Added
