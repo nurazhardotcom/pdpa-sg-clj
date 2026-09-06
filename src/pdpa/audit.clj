@@ -69,34 +69,59 @@
            (subs % (count (str "--" k "="))))
         args))
 
-(defn- parse-args [args]
-  ;; NOTE: babashka.cli/parse-opts returns a FLAT map on older Babashka
-  ;; (e.g. {:format "html"}) but NESTED under :opts on newer ones —
-  ;; accept both, or flags are silently ignored (seen live in CI).
-  (let [options (try
-                  (require 'babashka.cli)
-                  (let [raw (babashka.cli/parse-opts
-                              args
-                              [["-j" "--json" "JSON output only"]
-                               ["--sarif" "SARIF output (shorthand for --format sarif)"]
-                               ["-f" "--format FORMAT"
-                                "Output format: text|json|sarif|html|md"]
-                               ["-o" "--out FILE" "Write report to FILE"]
-                               ["-w" "--with-evidence TAGNAME"
-                                "Extra evidence tags to recognise"]])]
-                    (or (:opts raw) (:options raw) raw))
-                  (catch Exception _
-                    ;; Fallback for JVM Clojure
-                    {:json (boolean (some #(= % "--json") args))}))
-        fmt  (or (opt-val args "format")
-                 (:format options)
-                 (when (some #{"--sarif"} args) "sarif")
-                 (when (:json options) "json")
-                 "text")
-        out  (or (opt-val args "out") (:out options))
-        path (or (first (filter #(not (str/starts-with? % "-")) args))
-                 ".")]
-    [path (assoc options :format fmt :out out)]))
+(defn- parse-args
+  "Hand-rolled parser: [<path>] [--json|-j] [--sarif] [--format|-f text|json|
+  sarif|html|md] [--out|-o FILE] [--with-evidence|-w KEY] (both `--k v` and
+  `--k=v` spellings). Deliberately NOT babashka.cli: its parse-opts
+  spec/return shapes drift across Babashka versions (flat map vs {:spec}
+  map spec) and a mismatch silently degrades every flag to text output.
+  Returns [path options]."
+  [args]
+  (loop [xs (seq args) path nil fmt nil out nil
+         json? false sarif? false extra-evidence []]
+    (if (nil? xs)
+      [path {:format (or fmt (when sarif? "sarif") (when json? "json") "text")
+             :out    out
+             :json   json?
+             :extra-evidence extra-evidence}]
+      (let [a (first xs) r (next xs)]
+        (cond
+          (or (= a "--format") (= a "-f"))
+          (recur (next r) path (or (first r) fmt) out
+                 json? sarif? extra-evidence)
+
+          (str/starts-with? a "--format=")
+          (recur r path (subs a (count "--format=")) out
+                 json? sarif? extra-evidence)
+
+          (or (= a "--out") (= a "-o"))
+          (recur (next r) path fmt (first r)
+                 json? sarif? extra-evidence)
+
+          (str/starts-with? a "--out=")
+          (recur r path fmt (subs a (count "--out="))
+                 json? sarif? extra-evidence)
+
+          (or (= a "--json") (= a "-j"))
+          (recur r path fmt out true sarif? extra-evidence)
+
+          (= a "--sarif")
+          (recur r path fmt out json? true extra-evidence)
+
+          (or (= a "--with-evidence") (= a "-w"))
+          (recur (next r) path fmt out
+                 json? sarif? (conj extra-evidence (first r)))
+
+          (str/starts-with? a "--with-evidence=")
+          (recur r path fmt out
+                 json? sarif?
+                 (conj extra-evidence (subs a (count "--with-evidence="))))
+
+          (str/starts-with? a "-")
+          (recur r path fmt out json? sarif? extra-evidence)
+
+          :else
+          (recur r (or path a) fmt out json? sarif? extra-evidence))))))
 
 ;; ---------------------------------------------------------------------
 ;; Main entry point
@@ -110,6 +135,7 @@
   (let [[path opts] (parse-args args)
         scan-res    (scan/scan path)
         evidence    (-> (detect-evidence path)
+                        (into (:extra-evidence opts))
                         (into (evidence-from-args args))
                         distinct)
         chk-file    (io/file "CHECKLIST.md")
