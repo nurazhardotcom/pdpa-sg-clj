@@ -1,0 +1,51 @@
+{
+  "name": "pdpa-sg-clj",
+  "displayName": "PDPA SG Compliance (pdpa-sg-clj)",
+  "description": "Singapore PDPA PII + secret scanning via pdpa-sg-clj, rendered as inline diagnostics.",
+  "version": "0.1.0",
+  "publisher": "nurazhardotcom",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nurazhardotcom/pdpa-sg-clj"
+  },
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["Linters", "Other"],
+  "activationEvents": ["onLanguage"],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "pdpa.scanWorkspace",
+        "title": "PDPA: Scan workspace for PII/secrets"
+      }
+    ],
+    "configuration": {
+      "title": "PDPA SG",
+      "properties": {
+        "pdpa.toolRoot": {
+          "type": "string",
+          "default": "",
+          "description": "Absolute path to your pdpa-sg-clj checkout (contains bb.edn). Empty = first 'pdpa-sg-clj' folder found in the workspace."
+        },
+        "pdpa.scanOnSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Re-scan the workspace folder on file save."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.0.0",
+    "@vscode/vsce": "^3.0.0"
+  }
+}

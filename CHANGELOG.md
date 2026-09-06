@@ -8,19 +8,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
-- `pdpa.scan/scan` silently returned zero findings: `parse-rg-match`
-  invoked the rg-JSON `lines` map as a function, dropping every match.
-  Now extracts `data.lines.text`. Caught by new tests that assert real
-  counts instead of result shape.
-- `pdpa:ignore` line-level exclusion marker for intentional documentation
-  examples (shell `# pdpa:ignore` or Markdown `<!-- pdpa:ignore -->`);
-  exclusion is per-line, never per-file.
+- `pdpa.scan` finding `:path` is now a plain string (was the raw rg-JSON
+  `{"text": ...}` map); legacy map shapes are still tolerated by exporters.
+- Pre-commit hook called a non-existent `pdpa.nric/checksum-valid?`;
+  now calls `pdpa.nric/valid?` (previously every structural NRIC match
+  fail-closed the commit).
+- `pdpa.version/toolkit-version` synced to `0.2.0` (matched `VERSION`,
+  README, and CHANGELOG all along); README's `bb version` reference
+  corrected to `bb about`.
+- `bb audit --json` / `--format` / `--out` were silently ignored because
+  `babashka.cli/parse-opts` returns a flat options map; now honoured.
 
 ### Added
-- Rule `:id` included in every finding map (machine-readable key
-  alongside the human label).
-- `AI_DISCLOSURE.md` (AI assistance note, same convention as
-  `idira-audit-clj`).
+- SARIF 2.1.0 export (`pdpa.sarif`, `bb scan --format sarif`,
+  `bb audit --format sarif --out audit.sarif`) for auditors and GitHub
+  code scanning (CI uploads via `upload-sarif`).
+- Executive Markdown/HTML auditor reports (`pdpa.report`,
+  `bb audit --format html|md`), with documented PDF conversion for
+  ISO 27001 / MAS TRM filings.
+- Tool-independent rule pack (`pdpa.rules`, 20 PII + secret rules):
+  JWT, AWS secret/session keys, CyberArk Conjur, Slack, OpenAI,
+  Anthropic, GCP, Azure, extended GitHub tokens. Exportable via
+  `bb export-rules --format gitleaks|json`.
+- Real-time editor feedback: VS Code task + problemMatcher
+  (`editors/vscode/`), Neovim `:PdpaScan` quickfix (`editors/nvim/`),
+  and a full VS Code extension scaffold (`editors/pdpa-vscode/`).
+- GitHub Actions CI (`.github/workflows/ci.yml`: test job + SARIF scan
+  job) replacing `.gitlab-ci.yml`; README/CHANGELOG links moved from
+  private GitLab to GitHub.
+- `bb scan --format quickfix` (`path:line: [SEV] label`) for editors.
 
 ## [0.2.0] - 2026-07-16
 
@@ -39,6 +55,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 4 cognitect test-runner test namespaces under `test/pdpa/`
 - GitLab CI
 
-[Unreleased]: https://gitlab.com/nurazhar/pdpa-sg-clj/-/compare/v0.2.0...main
-[0.2.0]: https://gitlab.com/nurazhar/pdpa-sg-clj/-/releases/v0.2.0
-[0.1.0]: https://gitlab.com/nurazhar/pdpa-sg-clj/-/releases/v0.1.0
+[Unreleased]: https://github.com/nurazhardotcom/pdpa-sg-clj/compare/v0.2.0...main
+[0.2.0]: https://github.com/nurazhardotcom/pdpa-sg-clj/releases/tag/v0.2.0
+[0.1.0]: https://github.com/nurazhardotcom/pdpa-sg-clj/releases/tag/v0.1.0

@@ -11,13 +11,15 @@
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  CLI surface (bb.edn tasks)                                  │
-│  version, init, scan, redact, checklist, audit, dpo, test   │
+│  about, init, scan, redact, checklist, audit, export-rules, │
+│  dpo, test, shipit, blog-scan, install-hook                 │
 └──────────────────────┬──────────────────────────────────────┘
                        │
                        ▼
 ┌─────────────────────────────────────────────────────────────┐
 │  Public API (src/pdpa/core.clj)                              │
-│  redact, scan, checklist-status, audit, fill-policy, version │
+│  redact, scan, checklist-status, audit, fill-policy,        │
+│  to-sarif, audit-report, rule-pack, version                 │
 └──────────────────────┬──────────────────────────────────────┘
                        │
         ┌──────────────┼──────────────┬──────────────────┐
@@ -26,12 +28,19 @@
 │   nric.clj   │ │  redact.clj  │ │   scan.clj   │ │ checklist.clj│
 │  ─ mod11     │ │  ─ pipeline  │ │  ─ rg --json │ │  ─ md parser │
 │  ─ regex     │ │  ─ placehldrs│ │  ─ classify  │ │  ─ mark      │
-└──────────────┘ └──────────────┘ └──────────────┘ └──────────────┘
+└──────────────┘ └──────────────┘ └──────┬───────┘ └──────────────┘
+                                        │ compiles
+                                        ▼
+                                 ┌──────────────┐ ┌──────────────┐
+                                 │  rules.clj   │ │  sarif.clj   │
+                                 │  ─ rule pack │ │  ─ SARIF out │
+                                 │  ─ exports   │ │  ─ 2.1.0 log │
+                                 └──────────────┘ └──────────────┘
 
-┌──────────────┐ ┌──────────────┐ ┌──────────────┐
-│  audit.clj   │ │  policy.clj  │ │  version.clj │
-│  ─ orchestr. │ │  ─ templates │ │  ─ rule stamp│
-└──────────────┘ └──────────────┘ └──────────────┘
+┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐
+│  audit.clj   │ │  policy.clj  │ │  version.clj │ │  report.clj  │
+│  ─ orchestr. │ │  ─ templates │ │  ─ rule stamp│ │  ─ md / html │
+└──────────────┘ └──────────────┘ └──────────────┘ └──────────────┘
 ```
 
 ### Namespaces
@@ -40,7 +49,10 @@
 |---|---|---|
 | `nric.clj` | NRIC/FIN regex + Mod-11 check-digit algorithm | `clojure.string` only |
 | `redact.clj` | Pipeline: text → (NRIC/phone/email/name) → `[REDACTED_*]` | `pdpa.nric` |
-| `scan.clj` | Wraps `rg --json`, classifies by severity | `babashka.process`, `cheshire` |
+| `scan.clj` | Wraps `rg --json`, classifies via compiled `pdpa.rules` pack | `babashka.process`, `cheshire`, `pdpa.rules` |
+| `rules.clj` | Tool-independent rule pack (PII + secrets data) + gitleaks/JSON exports | `clojure.string`, `cheshire` (export only) |
+| `sarif.clj` | Scan result → SARIF 2.1.0 log | `cheshire`, `pdpa.version` |
+| `report.clj` | Audit context → Markdown / standalone HTML executive report | `clojure.string`, `pdpa.version` |
 | `checklist.clj` | Parses + writes `CHECKLIST.md`; applies auto-ticks | `clojure.string` only |
 | `audit.clj` | Orchestrator: scan → checklist → report | all of above |
 | `policy.clj` | Loads templates, fills `<<ORG_NAME>>` markup | only `clojure.string` |
@@ -127,7 +139,12 @@ The CHECKLIST.md file uses hidden HTML-comment markers like `<!-- agent:verify-p
 
 ## Future work
 
-- [ ] `gitleaks` integration as alternative scanner backend
+- [x] `gitleaks` interop — done as one-way export (`bb export-rules --format gitleaks`);
+  a live `--backend gitleaks` merge remains optional
 - [ ] Differential privacy layer for analytics (Obligation 6)
-- [ ] CI workflow template (GitHub Actions YAML) for `bb audit` on every push
-- [ ] Pre-commit hook (`.git/hooks/pre-commit`) that blocks commits containing raw NRICs
+- [x] CI workflow template (GitHub Actions YAML) for `bb audit` on every push
+  — done: `.github/workflows/ci.yml` (test job + SARIF scan job)
+- [x] Pre-commit hook (`.git/hooks/pre-commit`) that blocks commits containing raw NRICs
+  — done: `scripts/git-hooks/pre-commit` + `bb install-hook`
+- [ ] Native PDF emitter (today: HTML report + pandoc/headless-chrome conversion)
+- [ ] Publish `pdpa-vscode` extension to the VS Code Marketplace (scaffold ready)

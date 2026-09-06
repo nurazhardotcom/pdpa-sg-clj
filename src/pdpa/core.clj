@@ -7,6 +7,9 @@
             [pdpa.checklist :as checklist]
             [pdpa.policy   :as policy]
             [pdpa.audit    :as audit]
+            [pdpa.rules    :as rules]
+            [pdpa.sarif    :as sarif]
+            [pdpa.report   :as report]
             [pdpa.version  :as version]))
 
 ;; ---------------------------------------------------------------------
@@ -43,8 +46,29 @@
   (policy/fill-and-write! name values out-path))
 
 (defn audit
-  "Run the full audit pipeline against `path` and return a structured summary."
-  ([path] (audit/run [path])))
+  "Run the full audit pipeline against `path` and return a summary map
+  {:path :compliant? :counts :evidence :format :out}."
+  ([path] (audit/run [path]))
+  ([path args] (audit/run (into [path] args))))
+
+(defn to-sarif
+  "Scan result map (see `scan`) → SARIF 2.1.0 JSON string for auditors
+  and GitHub code scanning."
+  [scan-result]
+  (sarif/generate-string scan-result))
+
+(defn audit-report
+  "Audit context map (see `pdpa.report`) → Markdown or HTML string.
+  `format` is :md or :html."
+  [ctx format]
+  (case format
+    :html (report/audit->html ctx)
+    :md   (report/audit->markdown ctx)))
+
+(defn rule-pack
+  "The tool-independent detection rule pack (PII + secrets data)."
+  []
+  rules/rule-pack)
 
 (defn version
   "Return the toolkit + PDPA rule version banner string."
