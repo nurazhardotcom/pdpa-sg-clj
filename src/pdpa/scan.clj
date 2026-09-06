@@ -8,7 +8,9 @@
   well-structured JSON.  We never re-implement walking."
   (:require [cheshire.core :as json]
             [clojure.string  :as str]
-            [pdpa.nric      :as nric]))
+            [pdpa.nric      :as nric]
+            [pdpa.rules     :as rules]
+            [pdpa.sarif     :as sarif]))
 
 ;; -------------------------------------------------------------------------
 ;; Forward declaration:  parse-rg-match is referenced by `rg-line-seq-bb`,
@@ -19,70 +21,37 @@
 (declare parse-rg-match)
 
 ;; ---------------------------------------------------------------------
-;; Severity classification rules
+;; Severity classification rules — compiled from the tool-independent
+;; `pdpa.rules/rule-pack` so one rule list drives every backend/export.
 ;; ---------------------------------------------------------------------
 
+(defn- compile-matcher
+  "Build a {:id :label :sev :match-fn} classifier from a data rule.
+  Code-backed rules (only :nric-valid) keep their validator; everything
+  else compiles the portable :pattern / :exclude regex strings."
+  [{:keys [id label sev pattern exclude code]}]
+  {:id id :label label :sev sev
+   :match-fn (cond
+               (= :nric-valid code)
+               (fn [text _path] (seq (nric/find-valid-nrics text)))
+
+               (some? pattern)
+               (let [re (re-pattern pattern)
+                     ex (when exclude (re-pattern exclude))]
+                 (fn [text _path]
+                   (let [t (or text "")]
+                     (boolean
+                       (and (re-find re t)
+                            (not (and ex (re-find ex t))))))))
+
+               :else
+               (throw (ex-info (str "Rule has neither :pattern nor :code: " id)
+                               {:rule id})))})
+
 (def ^:private severity-rules
-  [{:id      :nric-live
-    :label   "Live Singapore NRIC / FIN (Mod-11 valid)"
-    :sev     :critical
-    :match-fn (fn [text _path] (seq (nric/find-valid-nrics text)))}
+  "Classifiers compiled from the tool-independent `pdpa.rules/rule-pack`."
+  (mapv compile-matcher rules/rule-pack))
 
-   {:id      :phone-sg
-    :label   "Singapore phone number with country code (+65)"
-    :sev     :critical
-    :match-fn (fn [text _path] (boolean (re-find #"\+65\s?[89]\d{7}" text)))}
-
-   {:id      :email-live
-    :label   "Email address in source code"
-    :sev     :low
-    :match-fn (fn [text _path]
-               (and (re-find #"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}" text)
-                    (not (re-find #"@example\.(com|org|net)" text))))}
-
-   {:id      :aws-key
-    :label   "AWS access key id"
-    :sev     :high
-    :match-fn (fn [text _path] (re-find #"AKIA[0-9A-Z]{16}" text))}
-
-   {:id      :stripe-live
-    :label   "Stripe live secret key"
-    :sev     :high
-    :match-fn (fn [text _path] (re-find #"sk_live_[A-Za-z0-9]{16,}" text))}
-
-   {:id      :pat-token
-    :label   "GitHub personal access token"
-    :sev     :high
-    :match-fn (fn [text _path] (re-find #"ghp_[A-Za-z0-9]{36}" text))}
-
-   {:id      :private-key
-    :label   "PEM private key block"
-    :sev     :high
-    :match-fn (fn [text _path]
-               (boolean (re-find
-                          #"-----BEGIN (RSA |EC |DSA )?PRIVATE KEY( BLOCK)?-----"
-                          text)))}
-
-   {:id      :django-insecure-key
-    :label   "Django 'django-insecure-' placeholder committed"
-    :sev     :medium
-    :match-fn (fn [text _path]
-               (boolean (re-find #"SECRET_KEY\s*=\s*['\"].*django-insecure-" text)))}
-
-   {:id      :hardcoded-password
-    :label   "Hardcoded password value (non-empty, non-test)"
-    :sev     :medium
-    :match-fn (fn [text _path]
-               (and (re-find #"(?i)(password|passwd|pwd)\s*[:=]\s*['\"][^.'\"{\s]{6,}" text)
-                    (not (re-find #"(?i)(test|fake|example)" text))))}
-
-   {:id      :hardcoded-secret
-    :label   "Generic API secret literal"
-    :sev     :medium
-    :match-fn (fn [text _path]
-               (boolean (re-find
-                          #"(?i)(api[_-]?key|secret|token)\s*[:=]\s*['\"][A-Za-z0-9_\-]{16,}"
-                          text)))}])
 
 ;; ---------------------------------------------------------------------
 ;; ripgrep invocation with proper stderr handling
@@ -112,10 +81,12 @@
     (let [d (json/parse-string line true)
           t (:type d)]
       (when (= "match" t)
-        {:path (:path (:data d))
-         ;; data.lines is {"text" "..."} — extract the string, don't invoke it
-         :text (get-in d [:data :lines :text])
-         :line (:line_number (:data d))}))
+        {;; data.path is {"text" "..."} — extract the string (older reads
+          ;; left a map here, which broke SARIF/IDE consumers)
+          :path (or (get-in d [:data :path :text]) (:path (:data d)))
+          ;; data.lines is {"text" "..."} — extract the string, don't invoke it
+          :text (get-in d [:data :lines :text])
+          :line (:line_number (:data d))}))
     (catch Exception _ nil)))
 
 (defn- rg-line-seq-jvm [path]
@@ -209,15 +180,66 @@
           (str/upper-case (name severity))
           path line label))
 
-(defn run
-  "Babashka entry point. CLI args: optional `<path>`."
+(defn- fmt-quickfix [{:keys [severity label path line]}]
+  (format "%s:%d: [%s] %s"
+          path line (str/upper-case (name severity)) label))
+
+(defn- parse-run-args
+  "Split CLI args into [path format out]. Supports both `--flag value`
+  and `--flag=value` spellings."
   [args]
-  (let [path   (or (first args) ".")
+  (loop [xs (seq args) path nil fmt "text" out nil]
+    (if (nil? xs)
+      [(or path ".") fmt out]
+      (let [a (first xs) r (next xs)]
+        (cond
+          (or (= a "--format") (= a "-f"))
+          (recur (next r) path (or (first r) fmt) out)
+
+          (str/starts-with? a "--format=")
+          (recur r path (subs a (count "--format=")) out)
+
+          (= a "--json")     (recur r path "json" out)
+          (= a "--sarif")    (recur r path "sarif" out)
+          (= a "--quickfix") (recur r path "quickfix" out)
+
+          (or (= a "--out") (= a "-o"))
+          (recur (next r) path fmt (first r))
+
+          (str/starts-with? a "--out=")
+          (recur r path fmt (subs a (count "--out=")))
+
+          (str/starts-with? a "-") (recur r path fmt out)
+          :else (recur r (or path a) fmt out))))))
+
+(defn run
+  "Babashka entry point. CLI args: [<path>] [--format text|json|sarif|quickfix]
+  [--json] [--sarif] [--quickfix] [--out FILE]. Prints to stdout unless
+  --out is given. `quickfix` emits `path:line: [SEV] label` for editors.
+  Returns the scan result map."
+  [args]
+  (let [[path fmt out] (parse-run-args args)
         result (scan path)
-        c      (:counts result)]
-    (println (format "[SCAN] %s — clean? %s" path (:clean? result)))
-    (println (format "  counts: critical=%d high=%d medium=%d low=%d"
-                     (or (:critical c) 0) (or (:high c) 0)
-                     (or (:medium  c) 0) (or (:low c) 0)))
-    (doseq [f (:findings result)] (println (fmt-finding f)))
-    (println "[DONE] exit-code 0 means clean")))
+        body   (case fmt
+                 "text"     nil
+                 "json"     (json/generate-string result {:pretty true})
+                 "sarif"    (sarif/generate-string result)
+                 "quickfix" (->> (:findings result)
+                                 (map fmt-quickfix)
+                                 (str/join "\n"))
+                 (throw (ex-info (str "Unknown format: " fmt
+                                      " (expected text|json|sarif|quickfix)")
+                                 {:format fmt})))]
+    (if (= "text" fmt)
+      (let [c (:counts result)]
+        (println (format "[SCAN] %s — clean? %s" path (:clean? result)))
+        (println (format "  counts: critical=%d high=%d medium=%d low=%d"
+                         (or (:critical c) 0) (or (:high c) 0)
+                         (or (:medium  c) 0) (or (:low c) 0)))
+        (doseq [f (:findings result)] (println (fmt-finding f)))
+        (println "[DONE] exit-code 0 means clean"))
+      (if out
+        (do (spit out body)
+            (println (str "[SCAN] wrote " out " (" fmt ")")))
+        (println body)))
+    result))

@@ -1,0 +1,5 @@
+{
+  // Copy to your project's .vscode/extensions.json to nudge collaborators
+  // toward SARIF rendering for pdpa-sg-clj audit output.
+  "recommendations": ["ms-sarifvscode.sarif-viewer"]
+}

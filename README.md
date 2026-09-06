@@ -1,7 +1,7 @@
 # pdpa-sg-clj 🇸🇬🛡️
 
-[![Latest Release](https://gitlab.com/nurazhar/pdpa-sg-clj/-/badges/release.svg)](https://gitlab.com/nurazhar/pdpa-sg-clj/-/releases)
-[![CI](https://gitlab.com/nurazhar/pdpa-sg-clj/badges/main/pipeline.svg)](https://gitlab.com/nurazhar/pdpa-sg-clj/-/pipelines)
+[![GitHub tag](https://img.shields.io/github/v/tag/nurazhardotcom/pdpa-sg-clj)](https://github.com/nurazhardotcom/pdpa-sg-clj/releases)
+[![CI](https://github.com/nurazhardotcom/pdpa-sg-clj/actions/workflows/ci.yml/badge.svg)](https://github.com/nurazhardotcom/pdpa-sg-clj/actions)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
 
 `pdpa-sg-clj v0.2.0` · Last verified 2026-07-16 · MIT ©2026 Nur Azhar
@@ -25,9 +25,9 @@ If you are an AI agent reading this repo on behalf of a deployment in Singapore:
 
 | # | Action | Command in your shell |
 |---|--------|-----------------------|
-| 1 | Clone this repo alongside your project | `git clone https://gitlab.com/nurazhar/pdpa-sg-clj && cp -r pdpa-sg-clj/CHECKLIST.md ./PDPA_CHECKLIST.md && cp -r pdpa-sg-clj/resources/policies ./policies` |
+| 1 | Clone this repo alongside your project | `git clone https://github.com/nurazhardotcom/pdpa-sg-clj && cp -r pdpa-sg-clj/CHECKLIST.md ./PDPA_CHECKLIST.md && cp -r pdpa-sg-clj/resources/policies ./policies` |
 | 2 | Install `bb` (Babashka) and `clj` (Clojure CLI) | see [Prerequisites](#prerequisites) |
-| 3 | Add `pdpa-sg-clj` as a git submodule or local dep | `git submodule add … pdpa-sg-clj` (or add to `deps.edn`) |
+| 3 | Add `pdpa-sg-clj` as a git submodule or local dep | `git submodule add https://github.com/nurazhardotcom/pdpa-sg-clj.git pdpa-sg-clj` (or add to `deps.edn`) |
 | 4 | Run the local audit | `cd pdpa-sg-clj && bb audit ../your-project` |
 | 5 | Fill in templates and tick the checklist | open `PDPA_CHECKLIST.md`, replace `<<ORG_NAME>>` placeholders in `policies/PRIVACY_POLICY.md`, mark each `[ ]` → `[x]` |
 
@@ -74,7 +74,7 @@ This repo ships a checklist (above), a scanner, a redactor, six policy templates
 Add to your `deps.edn`:
 
 ```clojure
-{:deps {pdpa/pdpa-sg-clj {:git/url "https://gitlab.com/nurazhar/pdpa-sg-clj.git"
+{:deps {pdpa/pdpa-sg-clj {:git/url "https://github.com/nurazhardotcom/pdpa-sg-clj.git"
                            :git/tag "v0.2.0"}}}
 ```
 
@@ -88,7 +88,7 @@ Or as a local checkout:
 ### Install as a CLI
 
 ```bash
-git clone https://gitlab.com/nurazhar/pdpa-sg-clj
+git clone https://github.com/nurazhardotcom/pdpa-sg-clj
 cd pdpa-sg-clj
 bb about         # prints version banner
 bb init ./your-project/
@@ -103,18 +103,40 @@ bb init ./your-project/
 All commands operate from this directory (or set `BB_PROJECT_DIR`).
 
 ### `bb about`
-Prints the toolkit + PDPA rule version (e.g. `pdpa-sg-clj 0.1.0 / Singapore PDPA 2026-06-21`).
+Prints the toolkit + PDPA rule version (e.g. `pdpa-sg-clj 0.2.0 / Singapore PDPA 2026-06-21`).
 
 ### `bb init [target-dir]`
 Copies `CHECKLIST.md` + 6 policy templates into your project.
 
-### `bb scan [path]`
-Runs the PII / secret / NRIC scanner. Exit code `0` = clean. Outputs JSON when `--json` flag passed.
+### `bb scan [path] [--format text|json|sarif|quickfix] [--out FILE]`
+Runs the PII / secret / NRIC scanner. Exit code `0` = clean.
 
 ```bash
 $ bb scan examples/minimal_project
 [SCAN] examples/minimal_project/README.md  → 0 PII, 0 secrets
 [SCAN] OK — 0 HIGH, 0 CRITICAL findings
+```
+
+Machine-readable output for gates and editors:
+
+```bash
+bb scan . --format json                  # full result map on stdout
+bb scan . --format sarif --out audit.sarif   # SARIF 2.1.0 for GitHub code scanning
+bb scan . --format quickfix              # path:line: [SEV] label for Vim/VS Code
+```
+
+### Secret detection (DevSecOps)
+
+Beyond PDPA PII (NRIC/FIN, `+65` phones, emails), the scanner ships a
+20-rule pack covering AWS keys + session tokens, JWTs, CyberArk Conjur
+keys, Slack / OpenAI / Anthropic / GCP / Azure credentials, Stripe,
+GitHub tokens, PEM keys, and hardcoded passwords/secrets. Rules live as
+tool-independent data in `src/pdpa/rules.clj` — the same pack drives the
+built-in scanner, SARIF export, and external tools:
+
+```bash
+bb export-rules --format gitleaks --out gitleaks.toml  # run the pack inside gitleaks
+bb export-rules --format json                          # portable rules.json
 ```
 
 ### `bb redact <file>`
@@ -136,8 +158,30 @@ Reads `CHECKLIST.md`, prints a summary table of which obligations are satisfied.
 [OK] 7/11 obligations satisfied — run `bb audit .` to scan.
 ```
 
-### `bb audit [path]`
-Combined scan + checklist + report. Writes `audit.json` + `audit.md` in the target directory.
+### `bb audit [path] [--format text|json|sarif|html|md] [--out FILE]`
+Combined scan + checklist + report. Prints to stdout unless `--out` is given.
+
+```bash
+bb audit . --format json --out audit.json    # CI/CD gate input
+bb audit . --format sarif --out audit.sarif  # GitHub code scanning / VS Code SARIF Viewer
+bb audit . --format html --out audit.html    # executive report for auditors
+bb audit . --format md --out audit.md        # Markdown report
+```
+
+### Export formats (for auditors)
+
+JSON gates CI; humans file paper. The executive HTML report carries the
+verdict, finding counts, published-evidence table, and rule stamp —
+convert it to PDF for ISO 27001 / MAS TRM filings:
+
+```bash
+bb audit . --format html --out audit.html
+pandoc audit.md -o audit.pdf                                   # via Markdown, or
+google-chrome --headless --print-to-pdf=audit.pdf audit.html   # straight from HTML
+```
+
+SARIF uploads straight into GitHub code scanning (wired in
+`.github/workflows/ci.yml` via `upload-sarif`).
 
 ### `bb dpo [name email]`
 Generates a public DPO contact page from `DPO_CONTACT.template.md`.
@@ -180,6 +224,24 @@ A complete end-to-end example is in [`examples/minimal_project/`](examples/minim
 
 ---
 
+## ⚡ Real-time feedback (editors)
+
+Pre-commit scanning (`bb install-hook`) is the last line of defence —
+these give warnings *before* `git commit`:
+
+- **VS Code, zero code:** copy `editors/vscode/tasks.json` into your
+  project's `.vscode/`, run the `pdpa: scan workspace` task
+  (Problems panel), and open `audit.sarif` with the
+  [SARIF Viewer](https://marketplace.visualstudio.com/items?itemName=MS-SarifVSCode.sarif-viewer)
+  (see `editors/vscode/extensions.json`).
+- **VS Code extension:** `editors/pdpa-vscode/` is a full extension
+  (`bb scan --format sarif` → inline diagnostics, rescan on save).
+  Publish with `vsce publish` (publisher: `nurazhardotcom`).
+- **Neovim:** `editors/nvim/pdpa.lua` provides `:PdpaScan [path]`,
+  pushing findings to the quickfix list.
+
+---
+
 ## 📚 What's in this repo
 
 ```
@@ -190,17 +252,24 @@ pdpa-sg-clj/
 ├── LICENSE                            ← MIT
 ├── deps.edn                           ← Clojure deps
 ├── bb.edn                             ← Babashka tasks (CLI surface)
-├── .gitlab-ci.yml                     ← GitLab CI pipeline
+├── .github/workflows/ci.yml            ← GitHub Actions CI (test + SARIF scan)
+├── editors/
+│   ├── vscode/tasks.json                ← VS Code task + problemMatcher
+│   ├── nvim/pdpa.lua                    ← Neovim :PdpaScan quickfix
+│   └── pdpa-vscode/                     ← full VS Code extension source
 ├── src/pdpa/
 │   ├── core.clj                       ← public API entry point
 │   ├── nric.clj                       ← NRIC/FIN regex + Mod-11 checksum
 │   ├── redact.clj                     ← PII redaction pipeline
+│   ├── rules.clj                      ← tool-independent rule pack + exports
 │   ├── scan.clj                       ← ripgrep wrapper + classifier
+│   ├── sarif.clj                      ← SARIF 2.1.0 export
+│   ├── report.clj                     ← Markdown/HTML auditor reports
 │   ├── checklist.clj                  ← CHECKLIST.md status reader/writer
 │   ├── audit.clj                      ← orchestrator: scan + checklist + report
 │   ├── policy.clj                     ← template loader + filler
 │   └── version.clj                    ← semver + PDPA rule version
-├── test/pdpa/*_test.clj               ← cognitect test-runner tests
+├── test/pdpa/*_test.clj               ← cognitect test-runner tests (7 namespaces)
 ├── resources/policies/
 │   ├── PRIVACY_POLICY.template.md
 │   ├── DPO_CONTACT.template.md
@@ -234,7 +303,7 @@ This repo was last reviewed against **Singapore PDPA as of 21 June 2026**. Key r
 - **AI Governance** — automated decision-making requires Model AI Governance Framework alignment (transparency, explainability).
 - **No fines < S$1M for significant breaches** under the 2022 amendments.
 
-Run `bb version` any time to see the rule version stamp.
+Run `bb about` any time to see the rule version stamp.
 
 ---
 

@@ -44,7 +44,7 @@ for FILE in $STAGED_FILES; do
         for HIT in $NRIC_HITS; do
             # Validate with the Clojure Mod-11 check if bb is available
             if command -v bb &>/dev/null; then
-                VALID=$(bb -e "(require '[pdpa.nric :as n]) (println (if (n/checksum-valid? \"$HIT\") \"INVALID\" \"VALID\"))" 2>/dev/null || echo "UNKNOWN")
+                VALID=$(bb -e "(require '[pdpa.nric :as n]) (println (if (n/valid? \"$HIT\") \"VALID\" \"INVALID\"))" 2>/dev/null || echo "UNKNOWN")
                 # Fail-closed: treat UNKNOWN (bb failed) same as VALID
                 if [ "$VALID" != "INVALID" ]; then
                     echo -e "${RED}[pdpa-sg-clj] CRITICAL: NRIC found in $FILE: $HIT (checksum: $VALID)${NC}"
@@ -72,13 +72,23 @@ for FILE in $STAGED_FILES; do
         VIOLATIONS=$((VIOLATIONS + 1))
     fi
 
-    # Check for common secret patterns
+    # Check for common secret patterns (mirrors pdpa.rules/rule-pack)
     SECRET_PATTERNS=(
-        'AKIA[0-9A-Z]{16}'           # AWS Access Key
-        'ghp_[0-9a-zA-Z]{36}'        # GitHub PAT
-        'glpat-[0-9a-zA-Z\-]{20,}'   # GitLab PAT
-        'sk-[0-9a-zA-Z]{32,}'        # OpenAI/Stripe secret key
-        'xox[bpors]-[0-9a-zA-Z\-]+'  # Slack token
+        'AKIA[0-9A-Z]{16}'            # AWS Access Key
+        'ASIA[0-9A-Z]{16}'            # AWS Session Key
+        'ghp_[0-9a-zA-Z]{36}'         # GitHub PAT
+        'gho_[0-9a-zA-Z]{36}'         # GitHub OAuth token
+        'ghs_[0-9a-zA-Z]{36}'         # GitHub App token
+        'github_pat_[0-9a-zA-Z_]{20,}' # GitHub fine-grained PAT
+        'glpat-[0-9a-zA-Z\-]{20,}'    # GitLab PAT
+        'sk-[0-9a-zA-Z]{32,}'         # OpenAI/Stripe secret key
+        'sk-proj-[0-9a-zA-Z_-]{20,}'  # OpenAI project key
+        'sk-ant-[0-9a-zA-Z_-]{20,}'   # Anthropic key
+        'sk_live_[0-9a-zA-Z]{16,}'    # Stripe live key
+        'xox[bpors]-[0-9a-zA-Z\-]+'   # Slack token
+        'AIza[0-9A-Za-z_-]{35}'       # Google Cloud API key
+        'eyJ[0-9a-zA-Z_-]{10,}\.[0-9a-zA-Z_-]{10,}\.[0-9a-zA-Z_\-=]{10,}' # JWT
+        'DefaultEndpointsProtocol=https?;' # Azure connection string
     )
 
     for PATTERN in "${SECRET_PATTERNS[@]}"; do

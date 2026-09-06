@@ -1,0 +1,5 @@
+out/**/*
+src/**/*
+**/*.map
+.vscode/**/*
+.gitignore

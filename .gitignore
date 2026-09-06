@@ -23,6 +23,12 @@ CHECKLIST.local.md
 audit.local.json
 audit.json
 audit.md
+audit.sarif
+audit.html
+
+# Node (VS Code extension scaffold)
+**/node_modules/
+editors/pdpa-vscode/out/
 
 # Redact backups
 *.redact.bak
