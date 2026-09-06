@@ -1,7 +1,7 @@
 # AGENTS.md — operator notes for AI agents working on pdpa-sg-clj
 
-Owner: Nur Azhar <dev@nurazhar.com> · https://nurazhar.com
-Identity rule: all commits as `Nur Azhar <dev@nurazhar.com>`.
+Owner: Nur Azhar <dev@nurazhar.com> · https://nurazhar.com <!-- pdpa:ignore -->
+Identity rule: all commits as `Nur Azhar <dev@nurazhar.com>`. <!-- pdpa:ignore -->
 Get identity from evidence (`git log`, `gh api user`) — never invent emails.
 
 ## Everyday commands
