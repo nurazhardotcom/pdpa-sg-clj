@@ -70,19 +70,21 @@
         args))
 
 (defn- parse-args [args]
-  ;; NOTE: babashka.cli/parse-opts returns the options as a FLAT map
-  ;; (e.g. {:format "html" :out "f.sarif"}), not nested under :options.
+  ;; NOTE: babashka.cli/parse-opts returns a FLAT map on older Babashka
+  ;; (e.g. {:format "html"}) but NESTED under :opts on newer ones —
+  ;; accept both, or flags are silently ignored (seen live in CI).
   (let [options (try
                   (require 'babashka.cli)
-                  (babashka.cli/parse-opts
-                    args
-                    [["-j" "--json" "JSON output only"]
-                     ["--sarif" "SARIF output (shorthand for --format sarif)"]
-                     ["-f" "--format FORMAT"
-                      "Output format: text|json|sarif|html|md"]
-                     ["-o" "--out FILE" "Write report to FILE"]
-                     ["-w" "--with-evidence TAGNAME"
-                      "Extra evidence tags to recognise"]])
+                  (let [raw (babashka.cli/parse-opts
+                              args
+                              [["-j" "--json" "JSON output only"]
+                               ["--sarif" "SARIF output (shorthand for --format sarif)"]
+                               ["-f" "--format FORMAT"
+                                "Output format: text|json|sarif|html|md"]
+                               ["-o" "--out FILE" "Write report to FILE"]
+                               ["-w" "--with-evidence TAGNAME"
+                                "Extra evidence tags to recognise"]])]
+                    (or (:opts raw) (:options raw) raw))
                   (catch Exception _
                     ;; Fallback for JVM Clojure
                     {:json (boolean (some #(= % "--json") args))}))
