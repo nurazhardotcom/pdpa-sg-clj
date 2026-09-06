@@ -318,4 +318,4 @@ Run `bb about` any time to see the rule version stamp.
 
 ## 🪪 License
 
-MIT ©2026 Nur Azhar. Singapore PDPA references are public regulatory guidance, not legal advice.
+MIT ©2026 Nur Azhar · contact via https://nurazhar.com. Singapore PDPA references are public regulatory guidance, not legal advice.

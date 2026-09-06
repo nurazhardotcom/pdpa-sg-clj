@@ -4,6 +4,7 @@
   "description": "Singapore PDPA PII + secret scanning via pdpa-sg-clj, rendered as inline diagnostics.",
   "version": "0.1.0",
   "publisher": "nurazhardotcom",
+  "author": { "name": "Nur Azhar", "url": "https://nurazhar.com" },
   "license": "MIT",
   "repository": {
     "type": "git",
