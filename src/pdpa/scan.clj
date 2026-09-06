@@ -62,15 +62,22 @@
 ;;   - babashka (preferred): uses babashka.process which drains correctly.
 ;;   - JVM Clojure fallback: launches rg via ProcessBuilder.
 
+(def ^:private skip-globs
+  "Directories never scanned: VCS metadata, build output, and vendored
+  dependency trees. Without these, one `npm install` (or a JVM `target/`)
+  can make `rg --json` emit gigabytes that the scanner holds in memory —
+  which OOM-killed a real run (see CHANGELOG). `--no-ignore` stays so
+  audits still catch secrets hiding in *other* ignored files."
+  ["!.git/" "!node_modules/" "!target/" "!out/" "!.cpcache/"])
+
+(defn- rg-args [path]
+  (concat ["rg" "--no-heading" "--line-number" "--no-ignore"]
+          (mapcat (fn [g] ["--glob" g]) skip-globs)
+          ["--json" "." path]))
+
 (defn- rg-line-seq-bb [path]
   (let [sh (requiring-resolve 'babashka.process/sh)
-        result (sh "rg"
-                   "--no-heading"
-                   "--line-number"
-                   "--no-ignore"
-                   "--json"
-                   "."
-                   path)]
+        result (apply sh (rg-args path))]
     (->> (:out result)
          str/split-lines
          (keep #'parse-rg-match))))
@@ -95,9 +102,7 @@
   ;; the field by reflection. In JVM Clojure this is identical to the
   ;; static-field access; just one extra indirection.
   (let [redirect-field java.lang.ProcessBuilder$Redirect/INHERIT
-        pb   (doto (ProcessBuilder.
-                       ["rg" "--no-heading" "--line-number"
-                        "--no-ignore" "--json" "." path])
+        pb   (doto (ProcessBuilder. ^java.util.List (vec (rg-args path)))
                (.redirectError redirect-field))
         proc (.start pb)
         in   (java.io.BufferedReader.
@@ -114,13 +119,7 @@
 (defn- rg-line-seq [path]
   (try
     (let [sh (requiring-resolve 'babashka.process/sh)
-          result (sh "rg"
-                     "--no-heading"
-                     "--line-number"
-                     "--no-ignore"
-                     "--json"
-                     "."
-                     path)]
+          result (apply sh (rg-args path))]
       (->> (:out result) str/split-lines (keep #'parse-rg-match)))
     (catch Exception _
       (try (rg-line-seq-jvm path)
