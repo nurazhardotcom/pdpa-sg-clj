@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-06
+
 ### Fixed
 - `pdpa.scan` finding `:path` is now a plain string (was the raw rg-JSON
   `{"text": ...}` map); legacy map shapes are still tolerated by exporters.
@@ -60,6 +62,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 4 cognitect test-runner test namespaces under `test/pdpa/`
 - GitLab CI
 
-[Unreleased]: https://github.com/nurazhardotcom/pdpa-sg-clj/compare/v0.2.0...main
+[Unreleased]: https://github.com/nurazhardotcom/pdpa-sg-clj/compare/v0.3.0...main
+[0.3.0]: https://github.com/nurazhardotcom/pdpa-sg-clj/releases/tag/v0.3.0
 [0.2.0]: https://github.com/nurazhardotcom/pdpa-sg-clj/releases/tag/v0.2.0
 [0.1.0]: https://github.com/nurazhardotcom/pdpa-sg-clj/releases/tag/v0.1.0

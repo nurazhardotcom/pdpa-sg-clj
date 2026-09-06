@@ -4,7 +4,7 @@
 [![CI](https://github.com/nurazhardotcom/pdpa-sg-clj/actions/workflows/ci.yml/badge.svg)](https://github.com/nurazhardotcom/pdpa-sg-clj/actions)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
 
-`pdpa-sg-clj v0.2.0` · Last verified 2026-07-16 · MIT ©2026 Nur Azhar
+`pdpa-sg-clj v0.3.0` · Last verified 2026-09-06 · MIT ©2026 Nur Azhar
 
 > **Singapore PDPA compliance toolkit for AI agents — read this README top-to-bottom, tick the checklist, you're done.**
 
@@ -16,6 +16,43 @@
 ```
 
 [Read THE CHECKLIST](CHECKLIST.md) · [Browse templates](resources/policies/) · [Run an example](examples/minimal_project/)
+
+---
+
+## 📖 In plain English (no tech background needed)
+
+**What is this?** A free toolkit that helps any organisation in Singapore
+follow the **PDPA** — Singapore's law on collecting and protecting
+customers' personal data (names, NRICs, phone numbers, emails).
+
+**Why should you care?** Breaking the rules can mean public orders to fix
+things plus fines of **over S$1 million** for serious breaches. If customer
+data leaks, you must notify the authorities **within 3 days**. This toolkit
+helps you find risks *before* that happens.
+
+**What do you get?**
+- A **checklist** of all 11 legal duties, in plain steps ([CHECKLIST.md](CHECKLIST.md))
+- **Ready-to-fill policy documents** (privacy policy, consent form, breach plan…)
+- A **scanner** your developer runs: it finds leaked personal data and
+  passwords in your systems and produces a **report card** for your auditor
+
+**If you are not technical, do this:**
+1. Open [CHECKLIST.md](CHECKLIST.md) and read it top to bottom (~20 minutes).
+2. Copy the [policy templates](resources/policies/) and fill in your
+   company name, contact email, and how long you keep data.
+3. Ask your developer (or IT vendor) to run the scan and hand you the
+   `audit.html` report — that is the file your auditor files with
+   ISO 27001 / MAS TRM paperwork.
+
+## ❓ FAQ
+
+| Question | Answer |
+|---|---|
+| Is this legal advice? | **No.** It is practical guidance plus tooling. For legal certainty, consult a lawyer. |
+| Do I need programmers to use it? | For the checklist and documents, no. For the automatic scan, yes — one developer, ~30 minutes. |
+| What do I give my auditor? | The `audit.html` report (convert to PDF in one step — see [Export formats](#export-formats-for-auditors)). |
+| What does it cost? | Nothing. MIT-licensed, free for commercial use. |
+| What is … (jargon buster) | **PII** = personal data like names/NRICs · **NRIC/FIN** = Singapore ID numbers · **DPO** = the Data Protection Officer you must appoint · **Redaction** = masking data (`S1234567A` → `[REDACTED]`) · **SARIF** = a standard result file auditors' tools can read · **CI/CD** = a robot that re-checks your code on every change |
 
 ---
 
@@ -75,7 +112,7 @@ Add to your `deps.edn`:
 
 ```clojure
 {:deps {pdpa/pdpa-sg-clj {:git/url "https://github.com/nurazhardotcom/pdpa-sg-clj.git"
-                           :git/tag "v0.2.0"}}}
+                           :git/tag "v0.3.0"}}}
 ```
 
 Or as a local checkout:
@@ -103,7 +140,7 @@ bb init ./your-project/
 All commands operate from this directory (or set `BB_PROJECT_DIR`).
 
 ### `bb about`
-Prints the toolkit + PDPA rule version (e.g. `pdpa-sg-clj 0.2.0 / Singapore PDPA 2026-06-21`).
+Prints the toolkit + PDPA rule version (e.g. `pdpa-sg-clj 0.3.0 / Singapore PDPA 2026-06-21`).
 
 ### `bb init [target-dir]`
 Copies `CHECKLIST.md` + 6 policy templates into your project.

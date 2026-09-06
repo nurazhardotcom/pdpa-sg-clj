@@ -1,7 +1,7 @@
 (ns pdpa.version
   "Single source of truth for toolkit + Singapore PDPA rule version stamp.")
 
-(def toolkit-version "0.2.0")
+(def toolkit-version "0.3.0")
 (def pdpa-rule-stamp "2026-06-21")
 
 (defn banner []
