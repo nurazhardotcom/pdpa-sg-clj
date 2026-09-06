@@ -1,6 +1,7 @@
 (ns pdpa.scan-test
   (:require [clojure.test :refer [deftest testing is use-fixtures]]
             [clojure.java.io :as io]
+            [clojure.string :as str]
             [pdpa.scan :as scan]))
 
 ;; S0100000J is Mod-11 valid (the canonical fictional example used across docs).
@@ -205,3 +206,20 @@
     (with-tmp-file "ok.txt" "password = \"test-password-123\"\n" ; pdpa:ignore — fictional fixture
       (fn [dir]
         (is (true? (:clean? (scan/scan dir))))))))
+
+(deftest vendored-dirs-skipped
+  (testing "node_modules/.git/target trees are never scanned (OOM guard)"
+    (let [dir (io/file (System/getProperty "java.io.tmpdir")
+                       (str "pdpa-skip-test-" (System/nanoTime)))]
+      (.mkdirs (io/file dir "node_modules" "dep"))
+      (.mkdirs (io/file dir "real"))
+      (try
+        (spit (io/file dir "node_modules" "dep" "index.js")
+              "key AKIAIOSFODNN7EXAMPLE here\n") ; pdpa:ignore — fictional fixture
+        (spit (io/file dir "real" "leak.txt")
+              "call +6594823068 asap\n") ; pdpa:ignore — fictional fixture
+        (let [r (scan/scan (str dir))]
+          (is (= 1 (count (:findings r))))
+          (is (str/includes? (:path (first (:findings r))) "real")))
+        (finally
+          (doseq [f (reverse (file-seq dir))] (.delete f)))))))

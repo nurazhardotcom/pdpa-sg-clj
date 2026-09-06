@@ -18,6 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   corrected to `bb about`.
 - `bb audit --json` / `--format` / `--out` were silently ignored because
   `babashka.cli/parse-opts` returns a flat options map; now honoured.
+- Scanner never skipped vendored trees: `rg --json` was invoked with
+  `--no-ignore` and no excludes, so one `npm install` made it slurp
+  `node_modules` into memory until the kernel OOM-killed the run.
+  `scan` now always excludes `.git/`, `node_modules/`, `target/`,
+  `out/`, `.cpcache/` (new `skip-globs`, regression-tested).
 
 ### Added
 - SARIF 2.1.0 export (`pdpa.sarif`, `bb scan --format sarif`,
