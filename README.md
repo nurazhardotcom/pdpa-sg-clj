@@ -1,5 +1,7 @@
 # pdpa-sg-clj 🇸🇬🛡️
 
+> **Status:** Active — maintained. See [AI_DISCLOSURE.md](AI_DISCLOSURE.md).
+
 [![GitHub tag](https://img.shields.io/github/v/tag/nurazhardotcom/pdpa-sg-clj)](https://github.com/nurazhardotcom/pdpa-sg-clj/releases)
 [![CI](https://github.com/nurazhardotcom/pdpa-sg-clj/actions/workflows/ci.yml/badge.svg)](https://github.com/nurazhardotcom/pdpa-sg-clj/actions)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
