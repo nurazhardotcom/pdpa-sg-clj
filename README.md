@@ -250,7 +250,7 @@ Generates a public DPO contact page from `DPO_CONTACT.template.md`.
 ;; 4. Fill in a policy template with org-specific values
 (pdpa/fill-policy "PRIVACY_POLICY.template.md"
   {"ORG_NAME" "Acme Pte Ltd"
-   "DPO_EMAIL" "dpo@acme.sg"
+   "DPO_EMAIL" "dpo@acme.sg"  ; pdpa:ignore — fictional placeholder
    "RETENTION_DAYS" "365"
    "EFFECTIVE_DATE" "2026-07-01"})
 ;; => writes policies/PRIVACY_POLICY.md

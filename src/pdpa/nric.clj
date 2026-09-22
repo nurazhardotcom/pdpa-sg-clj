@@ -25,8 +25,8 @@
       check-letter = \"XWUTRQPNKLM\"[idx]
 
   Reference value validation in REPL:
-    (valid? \"S0100000J\")  ;; => true   (sum=7; (7+4) mod 11 = 0 → 'J')
-    (valid? \"F0000002K\")  ;; => true   (sum=4; (4+4) mod 11 = 8 → 'K')
+    (valid? \"S0100000J\")  ;; => true   (sum=7; (7+4) mod 11 = 0 → 'J')  pdpa:ignore fictional example
+    (valid? \"F0000002K\")  ;; => true   (sum=4; (4+4) mod 11 = 8 → 'K')  pdpa:ignore fictional example
     (valid? \"S0000000Z\")  ;; => false  (sum=0; (0+4) mod 11 = 4 → 'G')
     (valid? \"deadbeefF\")  ;; => false  (hex false-positive guard works)"
   (:require [clojure.string :as str]))
@@ -98,8 +98,8 @@
   (require '[pdpa.nric :as n])
 
   ;; Positives (Mod-11 valid):
-  (n/valid? "S0100000J")  ;; => true
-  (n/valid? "F0000002K")  ;; => true
+  (n/valid? "S0100000J")  ;; => true  ; pdpa:ignore — fictional example
+  (n/valid? "F0000002K")  ;; => true  ; pdpa:ignore — fictional example
 
   ;; Negatives (structural match, checksum fails):
   (n/valid? "S0000000Z")  ;; => false
@@ -109,6 +109,6 @@
 
   ;; Bulk finding:
   (n/find-valid-nrics
-    "User S0100000J and S0000000Z and deadbeefdeadbeefF applied.")
-  ;; => ["S0100000J"]
+    "User S0100000J and S0000000Z and deadbeefdeadbeefF applied.")  ; pdpa:ignore — fictional example
+  ;; => ["S0100000J"]  ; pdpa:ignore — fictional example
   )
