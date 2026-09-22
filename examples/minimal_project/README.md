@@ -13,7 +13,7 @@ Imagine you just wrote the following `users.clj` (the kind of thing an agent mig
 (def users
   [{:name "Alice Tan"  :ic "S1234567D" :phone "+65 9123 4567" :email "alice@example.com.sg"}
    {:name "Bob Lim"    :ic "S9876543A" :phone "+65 9876 5432" :email "bob@example.com.sg"}
-   {:name "Carol Wong" :ic "S0246810C" :phone "+65 8234 5678" :email "carol@example.com.sg"}])
+   {:name "Carol Wong" :ic "S0246810C" :phone "+65 8234 5678" :email "carol@example.com.sg"}])  ; pdpa:ignore — fictional example
 
 (defn find-user [ic]
   (first (filter #(= (:ic %) ic) users)))
