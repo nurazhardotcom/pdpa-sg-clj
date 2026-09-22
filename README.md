@@ -44,7 +44,7 @@ helps you find risks *before* that happens.
    company name, contact email, and how long you keep data.
 3. Ask your developer (or IT vendor) to run the scan and hand you the
    `audit.html` report — that is the file your auditor files with
-   ISO 27001 / MAS TRM paperwork.
+   ISO 27001 paperwork.
 
 ## ❓ FAQ
 
@@ -211,7 +211,7 @@ bb audit . --format md --out audit.md        # Markdown report
 
 JSON gates CI; humans file paper. The executive HTML report carries the
 verdict, finding counts, published-evidence table, and rule stamp —
-convert it to PDF for ISO 27001 / MAS TRM filings:
+convert it to PDF for ISO 27001 filings:
 
 ```bash
 bb audit . --format html --out audit.html

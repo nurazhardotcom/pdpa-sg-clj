@@ -223,3 +223,27 @@
           (is (str/includes? (:path (first (:findings r))) "real")))
         (finally
           (doseq [f (reverse (file-seq dir))] (.delete f)))))))
+
+(deftest exclude-drops-matching-paths
+  (testing ":excludes drops findings whose path contains the substring"
+    (let [dir (io/file (System/getProperty "java.io.tmpdir")
+                       (str "pdpa-exclude-test-" (System/nanoTime)))]
+      (.mkdirs (io/file dir "test" "pdpa"))
+      (.mkdirs (io/file dir "src"))
+      (try
+        (spit (io/file dir "test" "pdpa" "fixture_test.clj")
+              "nric S0100000J on file\n") ; pdpa:ignore — fictional fixture
+        (spit (io/file dir "src" "leak.txt")
+              "nric S0100000J on file\n") ; pdpa:ignore — fictional fixture
+        (let [r (scan/scan (str dir) {:excludes ["test/"]})]
+          (is (= 1 (count (:findings r))))
+          (is (str/includes? (:path (first (:findings r))) "src"))
+          (is (false? (:clean? r))))
+        (let [r (scan/scan (str dir) {:excludes ["test/" "src/"]})]
+          (is (true? (:clean? r)))
+          (is (empty? (:findings r))))
+        (let [r (scan/scan (str dir) {:excludes ["nope/"]})]
+          (is (= 2 (count (:findings r))))
+          (is (false? (:clean? r))))
+        (finally
+          (doseq [f (reverse (file-seq dir))] (.delete f)))))))

@@ -32,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   code scanning (CI uploads via `upload-sarif`).
 - Executive Markdown/HTML auditor reports (`pdpa.report`,
   `bb audit --format html|md`), with documented PDF conversion for
-  ISO 27001 / MAS TRM filings.
+  ISO 27001 filings.
 - Tool-independent rule pack (`pdpa.rules`, 20 PII + secret rules):
   JWT, AWS secret/session keys, CyberArk Conjur, Slack, OpenAI,
   Anthropic, GCP, Azure, extended GitHub tokens. Exportable via

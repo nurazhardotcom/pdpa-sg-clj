@@ -78,50 +78,61 @@
   Returns [path options]."
   [args]
   (loop [xs (seq args) path nil fmt nil out nil
-         json? false sarif? false extra-evidence []]
+         json? false sarif? false extra-evidence [] excludes []]
     (if (nil? xs)
       [path {:format (or fmt (when sarif? "sarif") (when json? "json") "text")
              :out    out
              :json   json?
-             :extra-evidence extra-evidence}]
+             :extra-evidence extra-evidence
+             :excludes excludes}]
       (let [a (first xs) r (next xs)]
         (cond
           (or (= a "--format") (= a "-f"))
           (recur (next r) path (or (first r) fmt) out
-                 json? sarif? extra-evidence)
+                 json? sarif? extra-evidence excludes)
 
           (str/starts-with? a "--format=")
           (recur r path (subs a (count "--format=")) out
-                 json? sarif? extra-evidence)
+                 json? sarif? extra-evidence excludes)
 
           (or (= a "--out") (= a "-o"))
           (recur (next r) path fmt (first r)
-                 json? sarif? extra-evidence)
+                 json? sarif? extra-evidence excludes)
 
           (str/starts-with? a "--out=")
           (recur r path fmt (subs a (count "--out="))
-                 json? sarif? extra-evidence)
+                 json? sarif? extra-evidence excludes)
 
           (or (= a "--json") (= a "-j"))
-          (recur r path fmt out true sarif? extra-evidence)
+          (recur r path fmt out true sarif? extra-evidence excludes)
 
           (= a "--sarif")
-          (recur r path fmt out json? true extra-evidence)
+          (recur r path fmt out json? true extra-evidence excludes)
 
           (or (= a "--with-evidence") (= a "-w"))
           (recur (next r) path fmt out
-                 json? sarif? (conj extra-evidence (first r)))
+                 json? sarif? (conj extra-evidence (first r)) excludes)
 
           (str/starts-with? a "--with-evidence=")
           (recur r path fmt out
                  json? sarif?
-                 (conj extra-evidence (subs a (count "--with-evidence="))))
+                 (conj extra-evidence (subs a (count "--with-evidence=")))
+                 excludes)
+
+          (= a "--exclude")
+          (recur (next r) path fmt out
+                 json? sarif? extra-evidence (conj excludes (first r)))
+
+          (str/starts-with? a "--exclude=")
+          (recur r path fmt out
+                 json? sarif? extra-evidence
+                 (conj excludes (subs a (count "--exclude="))))
 
           (str/starts-with? a "-")
-          (recur r path fmt out json? sarif? extra-evidence)
+          (recur r path fmt out json? sarif? extra-evidence excludes)
 
           :else
-          (recur r (or path a) fmt out json? sarif? extra-evidence))))))
+          (recur r (or path a) fmt out json? sarif? extra-evidence excludes))))))
 
 ;; ---------------------------------------------------------------------
 ;; Main entry point
@@ -129,11 +140,13 @@
 
 (defn run
   "Babashka entry point. CLI args: [<path>] [--json] [--sarif]
-  [--format text|json|sarif|html|md] [--out FILE] [--with-evidence=KEY].
-  Prints to stdout unless --out is given. Returns a summary map."
+  [--format text|json|sarif|html|md] [--out FILE] [--with-evidence=KEY]
+  [--exclude SUBSTR]... (repeatable: drops findings whose path contains
+  SUBSTR, e.g. test fixtures). Prints to stdout unless --out is given.
+  Returns a summary map."
   [args]
   (let [[path opts] (parse-args args)
-        scan-res    (scan/scan path)
+        scan-res    (scan/scan path {:excludes (:excludes opts)})
         evidence    (-> (detect-evidence path)
                         (into (:extra-evidence opts))
                         (into (evidence-from-args args))
