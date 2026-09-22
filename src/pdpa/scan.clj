@@ -145,13 +145,23 @@
 (defn- ignored? [text]
   (str/includes? (or text "") ignore-marker))
 
+(defn- excluded?
+  "True when `path` contains any of the `:excludes` substrings.
+  Used to keep intentional fixtures (e.g. test PII) out of production
+  gates and SARIF uploads. Pure substring match — deterministic."
+  [path excludes]
+  (boolean (some #(str/includes? (str path) (str %)) excludes)))
+
 (defn scan
   "Walks `path` with ripgrep, classifies findings.
-  Returns {:findings [...], :counts {:critical N :high N ...}, :clean? ...}."
+  Returns {:findings [...], :counts {:critical N :high N ...}, :clean? ...}.
+  Opts: {:excludes [substr ...]} drops findings whose path contains any
+  substring (e.g. [\"test/\"] keeps fixtures out of production alerts)."
   ([path]    (scan path {}))
-   ([path _]  ;; {:keys [quiet?]} ignored for now
+   ([path {:keys [excludes]}]
     (let [findings (keep (fn [{:keys [text path line]}]
-                           (when-not (ignored? text)
+                           (when-not (or (ignored? text)
+                                         (excluded? path excludes))
                               (when-let [rule (classify text path)]
                                 {:severity (:sev rule)
                                  :id       (:id rule)
@@ -184,41 +194,49 @@
           path line (str/upper-case (name severity)) label))
 
 (defn- parse-run-args
-  "Split CLI args into [path format out]. Supports both `--flag value`
-  and `--flag=value` spellings."
+  "Split CLI args into [path format out excludes]. Supports both
+  `--flag value` and `--flag=value` spellings. `--exclude` is repeatable."
   [args]
-  (loop [xs (seq args) path nil fmt "text" out nil]
+  (loop [xs (seq args) path nil fmt "text" out nil excludes []]
     (if (nil? xs)
-      [(or path ".") fmt out]
+      [(or path ".") fmt out excludes]
       (let [a (first xs) r (next xs)]
         (cond
           (or (= a "--format") (= a "-f"))
-          (recur (next r) path (or (first r) fmt) out)
+          (recur (next r) path (or (first r) fmt) out excludes)
 
           (str/starts-with? a "--format=")
-          (recur r path (subs a (count "--format=")) out)
+          (recur r path (subs a (count "--format=")) out excludes)
 
-          (= a "--json")     (recur r path "json" out)
-          (= a "--sarif")    (recur r path "sarif" out)
-          (= a "--quickfix") (recur r path "quickfix" out)
+          (= a "--json")     (recur r path "json" out excludes)
+          (= a "--sarif")    (recur r path "sarif" out excludes)
+          (= a "--quickfix") (recur r path "quickfix" out excludes)
 
           (or (= a "--out") (= a "-o"))
-          (recur (next r) path fmt (first r))
+          (recur (next r) path fmt (first r) excludes)
 
           (str/starts-with? a "--out=")
-          (recur r path fmt (subs a (count "--out=")))
+          (recur r path fmt (subs a (count "--out=")) excludes)
 
-          (str/starts-with? a "-") (recur r path fmt out)
-          :else (recur r (or path a) fmt out))))))
+          (= a "--exclude")
+          (recur (next r) path fmt out (conj excludes (first r)))
+
+          (str/starts-with? a "--exclude=")
+          (recur r path fmt out (conj excludes (subs a (count "--exclude="))))
+
+          (str/starts-with? a "-") (recur r path fmt out excludes)
+          :else (recur r (or path a) fmt out excludes))))))
 
 (defn run
   "Babashka entry point. CLI args: [<path>] [--format text|json|sarif|quickfix]
-  [--json] [--sarif] [--quickfix] [--out FILE]. Prints to stdout unless
-  --out is given. `quickfix` emits `path:line: [SEV] label` for editors.
+  [--json] [--sarif] [--quickfix] [--out FILE] [--exclude SUBSTR]...
+  Prints to stdout unless --out is given. `quickfix` emits
+  `path:line: [SEV] label` for editors. Repeatable `--exclude` drops
+  findings whose path contains SUBSTR (e.g. test fixtures).
   Returns the scan result map."
   [args]
-  (let [[path fmt out] (parse-run-args args)
-        result (scan path)
+  (let [[path fmt out excludes] (parse-run-args args)
+        result (scan path {:excludes excludes})
         body   (case fmt
                  "text"     nil
                  "json"     (json/generate-string result {:pretty true})

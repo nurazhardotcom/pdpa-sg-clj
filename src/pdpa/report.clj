@@ -3,7 +3,7 @@
 
   Emits Markdown and standalone, print-friendly HTML from an audit
   context map. Pure string templating + `pdpa.version` — no extra deps,
-  runs on Babashka. Auditors convert to PDF for ISO 27001 / MAS TRM
+  runs on Babashka. Auditors convert to PDF for ISO 27001
   filings with one of (documented in README):
 
     pandoc audit.md -o audit.pdf
