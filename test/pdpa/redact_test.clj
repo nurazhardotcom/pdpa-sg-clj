@@ -3,8 +3,8 @@
             [clojure.test :refer [deftest testing is]]
             [pdpa.redact :as redact]))
 
-(def valid-nric "S0100000J")
-(def another-nric "F0000002K")
+(def valid-nric "S0100000D")
+(def another-nric "F0000002R")
 
 (deftest redact-text-basic
   (testing "returns map shape"
