@@ -1,5 +1,6 @@
 (ns pdpa.nric-test
-  (:require [clojure.test :refer [deftest testing is]]
+  (:require [clojure.string]
+            [clojure.test :refer [deftest testing is]]
             [pdpa.nric :as nric]))
 
 ;; ---------------------------------------------------------------------

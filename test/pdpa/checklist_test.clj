@@ -1,5 +1,6 @@
 (ns pdpa.checklist-test
-  (:require [clojure.test :refer [deftest testing is]]
+  (:require [clojure.string]
+            [clojure.test :refer [deftest testing is]]
             [pdpa.checklist :as checklist]))
 
 (def sample-md

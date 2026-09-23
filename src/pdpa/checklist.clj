@@ -1,8 +1,7 @@
 (ns pdpa.checklist
   "Reads `CHECKLIST.md`, applies auto-ticks based on scan results, writes
   updated file back. The single source of truth for compliance status."
-  (:require [clojure.string :as str]
-            [pdpa.nric :as nric]))
+  (:require [clojure.string :as str]))
 
 ;; ---------------------------------------------------------------------
 ;; Marker → obligation verification
@@ -126,11 +125,10 @@
                  (str/includes? line "- [ ]")
                  (some? (current-obligation verifiers))
                  ((current-obligation verifiers) ctx))
-            (do
-              (recur rest
-                     current-obligation
-                     false
-                     (conj! output (str/replace-first line "- [ ]" "- [x]"))))
+            (recur rest
+                   current-obligation
+                   false
+                   (conj! output (str/replace-first line "- [ ]" "- [x]")))
 
             ;; Default: pass through untouched
             :else

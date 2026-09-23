@@ -1,5 +1,6 @@
 (ns pdpa.redact-test
-  (:require [clojure.test :refer [deftest testing is]]
+  (:require [clojure.string]
+            [clojure.test :refer [deftest testing is]]
             [pdpa.redact :as redact]))
 
 (def valid-nric "S0100000J")

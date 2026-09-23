@@ -1,7 +1,7 @@
 (ns pdpa.core
   "Public API for pdpa-sg-clj — what an AI agent or Clojure library
   consumer should call. Re-exports a curated, minimal surface."
-  (:require [pdpa.nric     :as nric]
+  (:require [clojure.java.io]
             [pdpa.redact   :as redact]
             [pdpa.scan     :as scan]
             [pdpa.checklist :as checklist]
