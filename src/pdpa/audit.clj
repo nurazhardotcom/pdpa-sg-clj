@@ -13,7 +13,6 @@
             [clojure.string  :as str]
             [pdpa.scan       :as scan]
             [pdpa.checklist  :as checklist]
-            [pdpa.policy     :as policy]
             [pdpa.version    :as version]))
 
 ;; ---------------------------------------------------------------------
@@ -61,13 +60,6 @@
 ;; ---------------------------------------------------------------------
 ;; CLI args parsing (compatible with both BB and JVM)
 ;; ---------------------------------------------------------------------
-
-(defn- opt-val
-  "Value of a `--key=value` CLI arg, or nil."
-  [args k]
-  (some #(when (str/starts-with? % (str "--" k "="))
-           (subs % (count (str "--" k "="))))
-        args))
 
 (defn- parse-args
   "Hand-rolled parser: [<path>] [--json|-j] [--sarif] [--format|-f text|json|

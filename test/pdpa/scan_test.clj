@@ -1,5 +1,5 @@
 (ns pdpa.scan-test
-  (:require [clojure.test :refer [deftest testing is use-fixtures]]
+  (:require [clojure.test :refer [deftest testing is]]
             [clojure.java.io :as io]
             [clojure.string :as str]
             [pdpa.scan :as scan]))

@@ -15,7 +15,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Install Babashka
         run: |
@@ -29,6 +29,23 @@ jobs:
       - name: Run test suite
         run: bb test
 
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Install clj-kondo
+        run: |
+          curl -sLO https://github.com/clj-kondo/clj-kondo/releases/download/v2026.08.04/clj-kondo-2026.08.04-linux-amd64.zip
+          curl -sLO https://github.com/clj-kondo/clj-kondo/releases/download/v2026.08.04/clj-kondo-2026.08.04-linux-amd64.zip.sha256
+          sha256sum -c clj-kondo-2026.08.04-linux-amd64.zip.sha256
+          mkdir -p kondo-tmp && unzip -q clj-kondo-2026.08.04-linux-amd64.zip -d kondo-tmp
+          sudo install -m 0755 kondo-tmp/clj-kondo /usr/local/bin/clj-kondo
+          clj-kondo --version
+
+      - name: Lint (errors and warnings fail)
+        run: clj-kondo --lint src test scripts --fail-level warning
+
   scan:
     # Security scan is independent of unit tests so SARIF uploads even
     # when tests fail — findings are triaged in the Security tab.
@@ -37,7 +54,7 @@ jobs:
       contents: read
       security-events: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Install Babashka
         run: |
@@ -52,7 +69,7 @@ jobs:
         run: bb audit . --format sarif --out audit.sarif --exclude test/
 
       - name: Upload SARIF to code scanning
-        uses: github/codeql-action/upload-sarif@v4
+        uses: github/codeql-action/upload-sarif@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4
         with:
           sarif_file: audit.sarif
 
@@ -63,7 +80,7 @@ jobs:
     # Step 4). Both must exit 0 on a clean example tree.
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Install Babashka
         run: |

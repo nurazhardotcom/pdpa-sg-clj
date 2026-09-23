@@ -13,8 +13,8 @@
             [pdpa.sarif     :as sarif]))
 
 ;; -------------------------------------------------------------------------
-;; Forward declaration:  parse-rg-match is referenced by `rg-line-seq-bb`,
-;; `rg-line-seq-jvm`, and `rg-line-seq`, then defined further below.
+;; Forward declaration: parse-rg-match is referenced by the rg-line-seq
+;; variants, then defined further below.
 ;; The forward `declare` makes the symbol analyzable to SCI; the body
 ;; below is unchanged.
 ;; -------------------------------------------------------------------------
@@ -74,13 +74,6 @@
   (concat ["rg" "--no-heading" "--line-number" "--no-ignore"]
           (mapcat (fn [g] ["--glob" g]) skip-globs)
           ["--json" "." path]))
-
-(defn- rg-line-seq-bb [path]
-  (let [sh (requiring-resolve 'babashka.process/sh)
-        result (apply sh (rg-args path))]
-    (->> (:out result)
-         str/split-lines
-         (keep #'parse-rg-match))))
 
 (defn- parse-rg-match
   [line]

@@ -6,7 +6,6 @@
   Code SARIF Viewer renders it inline. Pure data + cheshire, so it runs
   identically on Babashka and JVM Clojure."
   (:require [cheshire.core :as json]
-            [clojure.string :as str]
             [pdpa.version :as version]))
 
 (def schema-uri

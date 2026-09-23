@@ -74,7 +74,7 @@ th{background:#f6f8fa}
 (defn audit->html
   "Audit context → standalone HTML executive report (inline CSS,
   print-to-PDF friendly). Same context keys as `audit->markdown`."
-  [{:keys [path scan-result evidence compliant? timestamp] :as ctx}]
+  [{:keys [path scan-result evidence compliant? timestamp]}]
   (let [c    (or (:counts scan-result) {})
         getc (fn [k] (or (get c k) 0))
         ev   (or (seq evidence) ["(none)"])

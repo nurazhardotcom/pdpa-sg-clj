@@ -11,6 +11,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CI `example-audit` job (`.github/workflows/ci.yml`) exercising the
   documented onboarding path end to end: `bb scan examples/minimal_project`
   plus `bb audit examples/minimal_project` must both exit 0.
+- CI `lint` job: `clj-kondo --lint src test scripts --fail-level warning`
+  (pinned v2026.08.04 release, SHA-256 verified).
+
+### Fixed
+- `clj-kondo` clean (was 13 warnings): removed dead private fns
+  (`audit/opt-val`, `scan/rg-line-seq-bb`), dropped unused requires,
+  added missing namespace requires in tests.
+
+### Security
+- CI actions pinned to commit SHAs; `SECURITY.md` and Dependabot added.
 
 ## [0.3.0] - 2026-09-06
 
