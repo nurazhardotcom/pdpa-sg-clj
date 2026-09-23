@@ -15,17 +15,20 @@
 ;; F0000002R:  prefix F (offset 0), digits [0,0,0,0,0,0,2];
 ;;             sum = 2*2 = 4; 4 mod 11 = 4 -> "XWUTRQPNMLK"[4] = 'R'  ✓
 ;;
-;; M5000000P:  prefix M (numeric value = 3, weight 1); digits [5,0,0,0,0,0,0];
-;;             weights for full input [3,5,0,0,0,0,0,0] = [1,2,7,6,5,4,3,2]
-;;             sum = 3*1 + 5*2 = 13; (13+4) mod 11 = 17 mod 11 = 6
-;;             "XWUTRQPNMLK"[6] = 'P'  ✓  (idx 6 identical in old/new tail)
+;; M5000000U:  prefix M (offset +3), digits [5,0,0,0,0,0,0];
+;;             weights [2,7,6,5,4,3,2]; sum = 5*2 = 10;
+;;             (10+3) mod 11 = 13 mod 11 = 2 -> "XWUTRQPNJLK"[2] = 'U'  ✓
+;;
+;; M5012345J:  corroborating M anchor (independent validators agree);
+;;             digits [5,0,1,2,3,4,5]; sum = 10+0+6+10+12+12+10 = 60;
+;;             (60+3) mod 11 = 63 mod 11 = 8 -> "XWUTRQPNJLK"[8] = 'J'  ✓
 ;;
 ;; S1234567D / F1234567N: canonical community vectors; digit sum = 106,
 ;;             106 mod 11 = 7 -> 'D' / 'N' with offset 0  ✓
 
 (def valid-citizen   "S0100000D")
 (def valid-foreigner "F0000002R")
-(def valid-fin       "M5000000P")
+(def valid-fin       "M5000000U")
 
 ;; Invalid fixtures (structural match but Mod-11 fails):
 (def invalid-citizen "S0000000Z")    ; sum=0, offset 0 -> idx 0 -> 'J' != 'Z'
@@ -44,7 +47,7 @@
 (deftest valid?-true-on-canonical-samples
   (is (nric/valid? valid-citizen)   "S0100000D passes Mod-11")
   (is (nric/valid? valid-foreigner) "F0000002R passes Mod-11 (foreigner charset)")
-  (is (nric/valid? valid-fin)       "M5000000P passes Mod-11 (FIN charset)")
+  (is (nric/valid? valid-fin)       "M5000000U passes Mod-11 (M charset)")
   (is (nric/valid? (clojure.string/upper-case valid-citizen))
       "uppercase input also passes"))
 
@@ -74,5 +77,11 @@
         "Only Mod-11 valid NRICs survive; hex strings are dropped")))
 
 (deftest f-prefix-uses-foreigner-charset
-  (testing "the F/G/M charset is XWUTRQPNMLK (different from S/T charset)"
+  (testing "the F/G charset is XWUTRQPNMLK (different from S/T charset)"
     (is (nric/valid? "F0000002R"))))
+
+(deftest m-prefix-uses-own-table-and-offset
+  (testing "M takes +3 with its own table (J at idx 8, not M)"
+    (is (nric/valid? "M5012345J")))
+  (testing "previous M mechanics output is now rejected"
+    (is (not (nric/valid? "M5000000P")))))

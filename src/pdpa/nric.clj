@@ -15,12 +15,9 @@
       S / T check-letter = \"JZIHGFEDCBA\"[idx]
       F / G check-letter = \"XWUTRQPNMLK\"[idx]
 
-    Prefix M (FIN — foreigners):
-      weights = [1 2 7 6 5 4 3 2]   (one extra weight for the prefix)
-      The M prefix contributes value 3 to position 0
-      (i.e. 3 × 1 = 3 added to the sum); +4 offset kept as-shipped
-      (no published M reference found — see CHANGELOG).
-      check-letter = \"XWUTRQPNMLK\"[idx]
+    Prefix M (FIN — foreigners, issued 2022+):
+      Same 7-digit weights [2 7 6 5 4 3 2]; prefix offset +3.
+      check-letter = \"XWUTRQPNJLK\"[idx]  (own table: J at idx 8, not M).
 
   Reference value validation in REPL:
     (valid? \"S0100000D\")  ;; => true   (sum=7; 7 mod 11 = 7 → 'D')  pdpa:ignore fictional example
@@ -34,8 +31,9 @@
   ;; FIN     (foreigners):           \b M       + 7 digits + check letter
   #"(?i)\b[STFGM]\d{7}[A-Z]\b")
 
-(def ^:private citizen-chars  "JZIHGFEDCBA")  ; S / T
-(def ^:private foreigner-chars "XWUTRQPNMLK") ; F / G / M
+(def ^:private citizen-chars   "JZIHGFEDCBA")  ; S / T
+(def ^:private foreigner-chars "XWUTRQPNMLK")  ; F / G
+(def ^:private m-series-chars  "XWUTRQPNJLK")  ; M (differs from F/G at idx 8)
 
 (defn nric-string?
   "True iff `s` structurally matches the Singapore NRIC/FIN shape."
@@ -45,11 +43,11 @@
 (defn- digits [s]
   (mapv #(Integer/parseInt (str %)) (re-seq #"\d" s)))
 
-(defn- prefixed-weights [c]
-  (case c
-    (\S \T \F \G) [2 7 6 5 4 3 2]
-    \M            [1 2 7 6 5 4 3 2]
-    nil))
+(def ^:private digit-weights [2 7 6 5 4 3 2])
+
+(def ^:private prefix-offsets
+  "Published Mod-11 prefix offsets, corroborated by independent validators."
+  {\S 0 \T 4 \F 0 \G 4 \M 3})
 
 (defn check-digit
   "Given a Singapore NRIC/FIN `nric`, return its ICA-computed check
@@ -59,17 +57,12 @@
     (when (re-matches nric-re s)
       (let [prefix    (first s)
             d         (digits (subs s 1 8))
-            weights   (prefixed-weights prefix)
-            ;; For M-prefix, prepend value 3 to the digit vector
-            input     (if (= prefix \M) (cons 3 d) d)
-            sum       (reduce + (map * input weights))
-            ;; Published offsets: +4 for T/G (and M, kept as-shipped);
-            ;; S/F take no offset.
-            offset    (if (contains? #{\T \G \M} prefix) 4 0)
+            sum       (reduce + (map * d digit-weights))
+            offset    (get prefix-offsets prefix 0)
             idx       (mod (+ sum offset) 11)
-            chars     (if (contains? #{\S \T} prefix)
-                        citizen-chars
-                        foreigner-chars)]
+            chars     (cond (= prefix \M) m-series-chars
+                            (contains? #{\S \T} prefix) citizen-chars
+                            :else foreigner-chars)]
         (nth chars idx)))))
 
 (defn valid?
@@ -103,6 +96,7 @@
   (n/valid? "F0000002R")  ;; => true  ; pdpa:ignore — fictional example
   (n/valid? "S1234567D")  ;; => true  ; pdpa:ignore — canonical community vector
   (n/valid? "G0000002M")  ;; => true  ; pdpa:ignore — pins the MLK tail
+  (n/valid? "M5012345J")  ;; => true  ; pdpa:ignore — corroborated M anchor
 
   ;; Negatives (structural match, checksum fails):
   (n/valid? "S0100000J")  ;; => false (previous +4-for-S output)

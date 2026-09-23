@@ -22,8 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   offset now applies to T/G only (was: all prefixes), and the F/G/M
   table tail is corrected to `...MLK` (was: `...KLM`). Canonical
   community vectors now validate; previous outputs correctly fail —
-  see `nric_test.clj`. M-prefix mechanics unchanged (no published M
-  reference found).
+  see `nric_test.clj`. M prefix (2022+ FINs): same 7-digit weights,
+  +3 offset, own table with J at idx 8 (was: value-3 prepend, +4
+  offset, shared table) — corroborated by independent validators.
 
 ### Security
 - CI actions pinned to commit SHAs; `SECURITY.md` and Dependabot added.

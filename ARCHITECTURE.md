@@ -72,8 +72,8 @@ Weights [2 7 6 5 4 3 2] over the 7 digits; +4 offset for T/G only (S/F +0):
   idx = (weighted sum + offset) mod 11
   S/T check-char = "JZIHGFEDCBA"[idx]
   F/G check-char = "XWUTRQPNMLK"[idx]
-M prefix: value 3 at weight 1, +4 offset, foreigner table (as-shipped:
-no published M reference found).
+M prefix (2022+): same 7-digit weights, +3 offset, own table
+"XWUTRQPNJLK" (J at idx 8) — corroborated by independent validators.
 Valid iff check-char matches the last character (upper-cased).
 ```
 
