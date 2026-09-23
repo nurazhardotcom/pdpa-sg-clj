@@ -62,21 +62,19 @@
 
 ### Key algorithms
 
-#### `pdpa.nric/checksum-valid?` — Mod-11 for Singapore NRIC/FIN
+#### `pdpa.nric/valid?` — Mod-11 for Singapore NRIC/FIN
 
-The official Singapore NRIC check-digit algorithm:
+The published Singapore NRIC check-digit algorithm (cross-checked
+against independent validators; see CHANGELOG):
 
 ```
-For NRIC S/T prefixes (citizens/PRs):
-  weights = [2 7 6 5 4 3 2]
-  sum = Σ (digit_i × weight_i) for i = 0..6
-  remainder = sum mod 11
-  check-char = "JZIHGFEDCBA" [remainder]
-  Valid iff check-char matches last character (after upper-casing, applying prefix-specific logic)
-
-For FIN M/F/G prefixes (foreigners):
-  weights = [2 7 6 5 4 3 2 1]  (extra weight for prefix)
-  sum = Σ ...
+Weights [2 7 6 5 4 3 2] over the 7 digits; +4 offset for T/G only (S/F +0):
+  idx = (weighted sum + offset) mod 11
+  S/T check-char = "JZIHGFEDCBA"[idx]
+  F/G check-char = "XWUTRQPNMLK"[idx]
+M prefix: value 3 at weight 1, +4 offset, foreigner table (as-shipped:
+no published M reference found).
+Valid iff check-char matches the last character (upper-cased).
 ```
 
 Implemented fully in `src/pdpa/nric.clj`.

@@ -7,27 +7,25 @@
   prefixes). The Mod-11 check-digit algorithm filters structural false
   positives down to ~1 in 11 of any structural match.
 
-  Algorithm (Singapore ICA):
-    Prefixes S / T (citizens, PRs):
-      weights = [2 7 6 5 4 3 2]
-      sum = Σ digit_i × weight_i   (i = 0..6)
-      idx = (sum + 4) mod 11
-      check-letter = \"JZIHGFEDCBA\"[idx]
-
-    Prefixes F / G (PRs issued post-2000, long-stay foreigners):
-      Same weights, same offset (+4).
-      check-letter = \"XWUTRQPNKLM\"[idx]
+  Algorithm (published Singapore NRIC/FIN Mod-11, cross-checked against
+  independent validators — see CHANGELOG):
+    Weights [2 7 6 5 4 3 2] over the 7 digits for S / T / F / G.
+    Prefix offset: +4 for T / G only; S / F take +0.
+      idx = (sum + offset) mod 11
+      S / T check-letter = \"JZIHGFEDCBA\"[idx]
+      F / G check-letter = \"XWUTRQPNMLK\"[idx]
 
     Prefix M (FIN — foreigners):
       weights = [1 2 7 6 5 4 3 2]   (one extra weight for the prefix)
       The M prefix contributes value 3 to position 0
-      (i.e. 3 × 1 = 3 added to the sum).
-      check-letter = \"XWUTRQPNKLM\"[idx]
+      (i.e. 3 × 1 = 3 added to the sum); +4 offset kept as-shipped
+      (no published M reference found — see CHANGELOG).
+      check-letter = \"XWUTRQPNMLK\"[idx]
 
   Reference value validation in REPL:
-    (valid? \"S0100000J\")  ;; => true   (sum=7; (7+4) mod 11 = 0 → 'J')  pdpa:ignore fictional example
-    (valid? \"F0000002K\")  ;; => true   (sum=4; (4+4) mod 11 = 8 → 'K')  pdpa:ignore fictional example
-    (valid? \"S0000000Z\")  ;; => false  (sum=0; (0+4) mod 11 = 4 → 'G')
+    (valid? \"S0100000D\")  ;; => true   (sum=7; 7 mod 11 = 7 → 'D')  pdpa:ignore fictional example
+    (valid? \"F0000002R\")  ;; => true   (sum=4; 4 mod 11 = 4 → 'R')  pdpa:ignore fictional example
+    (valid? \"S0000000Z\")  ;; => false  (sum=0; 0 mod 11 = 0 → 'J')
     (valid? \"deadbeefF\")  ;; => false  (hex false-positive guard works)"
   (:require [clojure.string :as str]))
 
@@ -37,7 +35,7 @@
   #"(?i)\b[STFGM]\d{7}[A-Z]\b")
 
 (def ^:private citizen-chars  "JZIHGFEDCBA")  ; S / T
-(def ^:private foreigner-chars "XWUTRQPNKLM") ; F / G / M
+(def ^:private foreigner-chars "XWUTRQPNMLK") ; F / G / M
 
 (defn nric-string?
   "True iff `s` structurally matches the Singapore NRIC/FIN shape."
@@ -65,7 +63,10 @@
             ;; For M-prefix, prepend value 3 to the digit vector
             input     (if (= prefix \M) (cons 3 d) d)
             sum       (reduce + (map * input weights))
-            idx       (mod (+ sum 4) 11)
+            ;; Published offsets: +4 for T/G (and M, kept as-shipped);
+            ;; S/F take no offset.
+            offset    (if (contains? #{\T \G \M} prefix) 4 0)
+            idx       (mod (+ sum offset) 11)
             chars     (if (contains? #{\S \T} prefix)
                         citizen-chars
                         foreigner-chars)]
@@ -98,10 +99,13 @@
   (require '[pdpa.nric :as n])
 
   ;; Positives (Mod-11 valid):
-  (n/valid? "S0100000J")  ;; => true  ; pdpa:ignore — fictional example
-  (n/valid? "F0000002K")  ;; => true  ; pdpa:ignore — fictional example
+  (n/valid? "S0100000D")  ;; => true  ; pdpa:ignore — fictional example
+  (n/valid? "F0000002R")  ;; => true  ; pdpa:ignore — fictional example
+  (n/valid? "S1234567D")  ;; => true  ; pdpa:ignore — canonical community vector
+  (n/valid? "G0000002M")  ;; => true  ; pdpa:ignore — pins the MLK tail
 
   ;; Negatives (structural match, checksum fails):
+  (n/valid? "S0100000J")  ;; => false (previous +4-for-S output)
   (n/valid? "S0000000Z")  ;; => false
   (n/valid? "deadbeefF")  ;; => false (hex false-positive guard)
   (n/valid? "X1234567A")  ;; => nil  (prefix not in {S,T,F,G})
@@ -109,6 +113,6 @@
 
   ;; Bulk finding:
   (n/find-valid-nrics
-    "User S0100000J and S0000000Z and deadbeefdeadbeefF applied.")  ; pdpa:ignore — fictional example
-  ;; => ["S0100000J"]  ; pdpa:ignore — fictional example
+    "User S0100000D and S0000000Z and deadbeefdeadbeefF applied.")  ; pdpa:ignore — fictional example
+  ;; => ["S0100000D"]  ; pdpa:ignore — fictional example
   )

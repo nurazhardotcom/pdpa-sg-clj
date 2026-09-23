@@ -18,6 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `clj-kondo` clean (was 13 warnings): removed dead private fns
   (`audit/opt-val`, `scan/rg-line-seq-bb`), dropped unused requires,
   added missing namespace requires in tests.
+- NRIC/FIN checksum aligned to the published Mod-11 algorithm: the +4
+  offset now applies to T/G only (was: all prefixes), and the F/G/M
+  table tail is corrected to `...MLK` (was: `...KLM`). Canonical
+  community vectors now validate; previous outputs correctly fail —
+  see `nric_test.clj`. M-prefix mechanics unchanged (no published M
+  reference found).
 
 ### Security
 - CI actions pinned to commit SHAs; `SECURITY.md` and Dependabot added.

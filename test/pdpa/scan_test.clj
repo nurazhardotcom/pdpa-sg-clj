@@ -4,7 +4,7 @@
             [clojure.string :as str]
             [pdpa.scan :as scan]))
 
-;; S0100000J is Mod-11 valid (the canonical fictional example used across docs).
+;; S0100000D is Mod-11 valid (the canonical fictional example used across docs).
 ;; S0466008B is structural but checksum-INVALID (provably never issued) —
 ;; ideal for fictional documentation placeholders.
 
@@ -42,7 +42,7 @@
 
 (deftest valid-nric-is-critical
   (testing "Mod-11 valid NRIC is flagged critical"
-    (with-tmp-file "leak.txt" "nric S0100000J on file\n"
+    (with-tmp-file "leak.txt" "nric S0100000D on file\n"
       (fn [dir]
         (let [r (scan/scan dir)]
           (is (false? (:clean? r)))
@@ -66,7 +66,7 @@
 (deftest ignore-marker-suppresses-line
   (testing "lines carrying pdpa:ignore are excluded (shell + md comment styles)"
     (with-tmp-file "doc.md"
-      (str "sed -i 's/S0100000J/S********G/g' f # pdpa:ignore — fictional example\n"
+      (str "sed -i 's/S0100000D/S********G/g' f # pdpa:ignore — fictional example\n"
            "call +6594823068 <!-- pdpa:ignore --> fictional example\n")
       (fn [dir]
         (let [r (scan/scan dir)]
@@ -76,8 +76,8 @@
 (deftest ignore-marker-leaves-other-lines-flagged
   (testing "exclusion is per-line, not per-file"
     (with-tmp-file "doc.md"
-      (str "sed -i 's/S0100000J/S********G/g' f # pdpa:ignore — fictional example\n"
-           "real leak S0100000J here\n")
+      (str "sed -i 's/S0100000D/S********G/g' f # pdpa:ignore — fictional example\n"
+           "real leak S0100000D here\n")
       (fn [dir]
         (let [r (scan/scan dir)]
           (is (false? (:clean? r)))
@@ -86,7 +86,7 @@
 
 (deftest finding-path-is-string
   (testing ":path is a plain string (not the raw rg JSON map)"
-    (with-tmp-file "leak.txt" "nric S0100000J on file\n" ; pdpa:ignore — fictional fixture
+    (with-tmp-file "leak.txt" "nric S0100000D on file\n" ; pdpa:ignore — fictional fixture
       (fn [dir]
         (let [r (scan/scan dir)]
           (is (string? (:path (first (:findings r))))))))))
@@ -232,9 +232,9 @@
       (.mkdirs (io/file dir "src"))
       (try
         (spit (io/file dir "test" "pdpa" "fixture_test.clj")
-              "nric S0100000J on file\n") ; pdpa:ignore — fictional fixture
+              "nric S0100000D on file\n") ; pdpa:ignore — fictional fixture
         (spit (io/file dir "src" "leak.txt")
-              "nric S0100000J on file\n") ; pdpa:ignore — fictional fixture
+              "nric S0100000D on file\n") ; pdpa:ignore — fictional fixture
         (let [r (scan/scan (str dir) {:excludes ["test/"]})]
           (is (= 1 (count (:findings r))))
           (is (str/includes? (:path (first (:findings r))) "src"))
