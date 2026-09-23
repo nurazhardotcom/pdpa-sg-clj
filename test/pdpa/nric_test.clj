@@ -4,48 +4,63 @@
             [pdpa.nric :as nric]))
 
 ;; ---------------------------------------------------------------------
-;; Valid fixtures (Mod-11 hand-checked)
+;; Valid fixtures (Mod-11 hand-checked against the published algorithm:
+;; weights [2 7 6 5 4 3 2], +4 offset for T/G only, S/T table
+;; "JZIHGFEDCBA", F/G/M table "XWUTRQPNMLK")
 ;; ---------------------------------------------------------------------
 ;;
-;; S0100000J:  prefix S, digits [0,1,0,0,0,0,0]; weights [2,7,6,5,4,3,2];
-;;             sum = 1*7 = 7; (7+4) mod 11 = 0 -> "JZIHGFEDCBA"[0] = 'J'  ✓
+;; S0100000D:  prefix S (offset 0), digits [0,1,0,0,0,0,0];
+;;             sum = 1*7 = 7; 7 mod 11 = 7 -> "JZIHGFEDCBA"[7] = 'D'  ✓
 ;;
-;; F0000002K:  prefix F, digits [0,0,0,0,0,0,2]; weights [2,7,6,5,4,3,2];
-;;             sum = 2*2 = 4; (4+4) mod 11 = 8 -> "XWUTRQPNKLM"[8] = 'K'  ✓
+;; F0000002R:  prefix F (offset 0), digits [0,0,0,0,0,0,2];
+;;             sum = 2*2 = 4; 4 mod 11 = 4 -> "XWUTRQPNMLK"[4] = 'R'  ✓
 ;;
 ;; M5000000P:  prefix M (numeric value = 3, weight 1); digits [5,0,0,0,0,0,0];
 ;;             weights for full input [3,5,0,0,0,0,0,0] = [1,2,7,6,5,4,3,2]
 ;;             sum = 3*1 + 5*2 = 13; (13+4) mod 11 = 17 mod 11 = 6
-;;             "XWUTRQPNKLM"[6] = 'P'  ✓
+;;             "XWUTRQPNMLK"[6] = 'P'  ✓  (idx 6 identical in old/new tail)
+;;
+;; S1234567D / F1234567N: canonical community vectors; digit sum = 106,
+;;             106 mod 11 = 7 -> 'D' / 'N' with offset 0  ✓
 
-(def valid-citizen   "S0100000J")
-(def valid-foreigner "F0000002K")
+(def valid-citizen   "S0100000D")
+(def valid-foreigner "F0000002R")
 (def valid-fin       "M5000000P")
 
 ;; Invalid fixtures (structural match but Mod-11 fails):
-(def invalid-citizen "S0000000Z")    ; sum=0; (0+4) mod 11 = 4 -> 'G' != 'Z'
+(def invalid-citizen "S0000000Z")    ; sum=0, offset 0 -> idx 0 -> 'J' != 'Z'
 (def invalid-hex     "deadbeefdeadbeefdeadbeefdeadbeefF") ;; hex false-positive
 
 ;; ---------------------------------------------------------------------
 
 (deftest nric-regex-matches-basic-shapes
   (testing "recognises lowercase"
-    (is (nric/nric-string? "s0100000j")))
+    (is (nric/nric-string? "s0100000d")))
   (testing "rejects prefixes outside the SG set"
     (is (not (nric/nric-string? "X1234567A"))))
   (testing "rejects too few digits"
     (is (not (nric/nric-string? "S12345A")))))
 
 (deftest valid?-true-on-canonical-samples
-  (is (nric/valid? valid-citizen)   "S0100000J passes Mod-11")
-  (is (nric/valid? valid-foreigner) "F0000002K passes Mod-11 (foreigner charset)")
+  (is (nric/valid? valid-citizen)   "S0100000D passes Mod-11")
+  (is (nric/valid? valid-foreigner) "F0000002R passes Mod-11 (foreigner charset)")
   (is (nric/valid? valid-fin)       "M5000000P passes Mod-11 (FIN charset)")
   (is (nric/valid? (clojure.string/upper-case valid-citizen))
       "uppercase input also passes"))
 
+(deftest valid?-true-on-community-vectors
+  (is (nric/valid? "S1234567D") "canonical S vector (offset 0)")
+  (is (nric/valid? "F1234567N") "canonical F vector (offset 0)")
+  (is (nric/valid? "T0000000G") "T prefix takes the +4 offset")
+  (is (nric/valid? "G0000002M") "G prefix takes +4; idx 8 pins the MLK tail"))
+
 (deftest valid?-false-on-bad-checksums
   (testing "structural match with wrong check letter is rejected"
     (is (not (nric/valid? invalid-citizen))))
+  (testing "previous (+4-for-all, KLM-tail) outputs are now rejected"
+    (is (not (nric/valid? "S0100000J")))
+    (is (not (nric/valid? "F0000002K")))
+    (is (not (nric/valid? "S1234567J"))))
   (testing "hex false-positives are filtered out"
     (is (not (nric/valid? invalid-hex))))
   (testing "nil and empty are safe"
@@ -59,5 +74,5 @@
         "Only Mod-11 valid NRICs survive; hex strings are dropped")))
 
 (deftest f-prefix-uses-foreigner-charset
-  (testing "the F/G/M charset is XWUTRQPNKLM (different from S/T charset)"
-    (is (nric/valid? "F0000002K"))))
+  (testing "the F/G/M charset is XWUTRQPNMLK (different from S/T charset)"
+    (is (nric/valid? "F0000002R"))))
