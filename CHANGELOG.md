@@ -54,7 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - `VERSION` file as single source of truth for semver
-- `CHANGELOG.md` documenting release history for hiring managers and recruiters
+- `CHANGELOG.md` documenting release history
 - Production-release badge in `README.md` linking to GitLab Releases page
 - Production-release stamp line crediting Nur Azhar
 
