@@ -55,3 +55,27 @@ jobs:
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: audit.sarif
+
+  example-audit:
+    # Exercises the documented onboarding path end to end so README drift
+    # breaks CI: `bb scan examples/minimal_project` (README CLI usage)
+    # plus `bb audit examples/minimal_project` (examples/minimal_project
+    # Step 4). Both must exit 0 on a clean example tree.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Babashka
+        run: |
+          curl -sLO https://raw.githubusercontent.com/babashka/babashka/master/install
+          chmod +x install
+          sudo ./install
+
+      - name: Install ripgrep
+        run: sudo apt-get update && sudo apt-get install -y ripgrep
+
+      - name: Documented example-project scan
+        run: bb scan examples/minimal_project
+
+      - name: Documented example-project audit
+        run: bb audit examples/minimal_project

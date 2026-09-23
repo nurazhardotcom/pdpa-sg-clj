@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- CI `example-audit` job (`.github/workflows/ci.yml`) exercising the
+  documented onboarding path end to end: `bb scan examples/minimal_project`
+  plus `bb audit examples/minimal_project` must both exit 0.
+
 ## [0.3.0] - 2026-09-06
 
 ### Fixed
