@@ -93,6 +93,6 @@ Output:
 - 0 evidence found → notification / DPO still need MANUAL ticks
 - The remaining ticks (1, 2, 3, 6, 7, 8, 9, 10, 11) are manual because they require HUMAN action (publishing a privacy page, naming a DPO, etc.) — not something the scanner can verify.
 
-Read `../PDPA_CHECKLIST.md` and tick the manual boxes once you've completed the corresponding work.
+Read `../minimal_project/PDPA_CHECKLIST.md` (written there by `bb init` in Step 3) and tick the manual boxes once you've completed the corresponding work.
 
 Total time-to-compliant: ~30 minutes.
