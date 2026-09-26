@@ -48,7 +48,7 @@
   ;; a results map.  We exit with non-zero if any test failed or errored.
   (do
     (require 'pdpa.nric-test 'pdpa.redact-test 'pdpa.checklist-test 'pdpa.scan-test
-             'pdpa.rules-test 'pdpa.sarif-test 'pdpa.report-test)
+             'pdpa.rules-test 'pdpa.sarif-test 'pdpa.report-test 'pdpa.portable-test)
     (let [results ((requiring-resolve 'clojure.test/run-tests)
                    'pdpa.nric-test
                    'pdpa.redact-test
@@ -56,10 +56,17 @@
                    'pdpa.scan-test
                    'pdpa.rules-test
                    'pdpa.sarif-test
-                   'pdpa.report-test)]
+                   'pdpa.report-test
+                   'pdpa.portable-test)]
       (System/exit (if (and (zero? (:fail results))
                             (zero? (:error results)))
                      0 1))))
+
+  test:cljs
+  ;; Portable suite: ClojureScript compiles to JavaScript and runs on Node.
+  (let [result (babashka.process/shell {:out :inherit :err :inherit}
+                                       "clojure" "-M:cljs-test")]
+    (System/exit (:exit result)))
 
   blog-scan
   ;; Scan a blog directory for PII before publishing to public site.

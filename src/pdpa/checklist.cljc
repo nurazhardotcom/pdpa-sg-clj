@@ -1,6 +1,10 @@
 (ns pdpa.checklist
-  "Reads `CHECKLIST.md`, applies auto-ticks based on scan results, writes
-  updated file back. The single source of truth for compliance status."
+  "Portable checklist parsing and auto-tick transformation.
+
+  File reads and CLI output are native adapter concerns. The marker
+  semantics below intentionally retain the historical behavior: a marker
+  makes only the first subsequent unmarked checkbox eligible, and it does
+  not retroactively inspect boxes above the marker."
   (:require [clojure.string :as str]))
 
 ;; ---------------------------------------------------------------------
@@ -45,7 +49,7 @@
    (fn [{:keys [evidence]}]
      (boolean (some #(= "DPO_CONTACT" %) evidence)))})
 
-(def ^:private obligation-order
+(def obligation-order
   {:consent 1
    :purpose 2
    :notification 3
@@ -58,22 +62,30 @@
    :breach 10
    :dpo 11})
 
+(def ^:private obligation-by-number
+  {"1" :consent
+   "2" :purpose
+   "3" :notification
+   "4" :accuracy
+   "5" :protection
+   "6" :retention
+   "7" :transfer
+   "8" :access
+   "9" :withdrawal
+   "10" :breach
+   "11" :dpo})
+
+(defn- canonical-number [value]
+  (loop [remaining value]
+    (if (and (> (count remaining) 1)
+             (= "0" (subs remaining 0 1)))
+      (recur (subs remaining 1))
+      remaining)))
+
 (defn- heading->obligation-key [heading]
-  (let [m (re-find #"##\s+(\d+)\." heading)
-        num (when m (Integer/parseInt (second m)))]
-    (case num
-      1 :consent
-      2 :purpose
-      3 :notification
-      4 :accuracy
-      5 :protection
-      6 :retention
-      7 :transfer
-      8 :access
-      9 :withdrawal
-      10 :breach
-      11 :dpo
-      nil)))
+  (let [m (re-find #"##\s+(\d+)\." heading)]
+    (when m
+      (get obligation-by-number (canonical-number (second m))))))
 
 ;; ---------------------------------------------------------------------
 ;; Auto-tick signature line:  "<!-- agent:verify-protection -->"
@@ -88,7 +100,8 @@
 ;; Walk the CHECKLIST.md line-by-line. Under each H2 heading (## N. ...),
 ;; the FIRST unmarked `[ ]` after `<!-- agent:verify-X -->` is auto-ticked
 ;; iff the verifier returns true. Manual ticks (lines without markers)
-;; are untouched.
+;; are untouched. This wording and the placement semantics are preserved
+;; from the native implementation; see the follow-up contract in docs.
 ;; ---------------------------------------------------------------------
 
 (defn auto-tick
@@ -180,19 +193,30 @@
                     :ratio   (if (zero? total) 0.0 (double (/ ticked total)))}]))
          (into {}))))
 
-(defn run
-  "Babashka entry point. Prints CHECKLIST.md status summary."
-  [_]
-  (let [md (slurp "CHECKLIST.md")
-        st (status md)]
-    (println "[CHECKLIST] Singapore PDPA compliance status")
-    (println (format "  %-30s %-8s %s" "Obligation" "Status" "Progress"))
-    (println (apply str (repeat 60 "-")))
-    (doseq [[k v] (sort-by (fn [[k _]] (obligation-order k 99)) st)]
-      (println (format "  %-30s %-8s %d/%d"
-                       (clojure.string/capitalize (clojure.string/replace (name k) #"-" " "))
-                       (:status v)
-                       (:ticked v) (:total v))))
-    (let [ok    (count (filter (fn [[_ v]] (= "OK" (:status v))) st))
-          total (count st)]
-      (println (format "[OK] %d/%d obligations satisfied" ok total)))))
+(defn unsupported-platform! [operation]
+  (throw (ex-info (str operation " is native-only and is unavailable in ClojureScript")
+                  {:operation operation :platform :cljs})))
+
+#?(:clj
+   (defn run
+     "Babashka entry point. Prints CHECKLIST.md status summary."
+     [_]
+     (let [md (slurp "CHECKLIST.md")
+           st (status md)]
+       (println "[CHECKLIST] Singapore PDPA compliance status")
+       (println (format "  %-30s %-8s %s" "Obligation" "Status" "Progress"))
+       (println (apply str (repeat 60 "-")))
+       (doseq [[k v] (sort-by (fn [[k _]] (obligation-order k 99)) st)]
+         (println (format "  %-30s %-8s %d/%d"
+                          (str/capitalize (str/replace (name k) #"-" " "))
+                          (:status v)
+                          (:ticked v) (:total v))))
+       (let [ok    (count (filter (fn [[_ v]] (= "OK" (:status v))) st))
+             total (count st)]
+         (println (format "[OK] %d/%d obligations satisfied" ok total)))))
+
+   :cljs
+   (defn run
+     "Native-only CLI placeholder for API compatibility."
+     [args]
+     (unsupported-platform! (str "checklist " (pr-str args)))))

@@ -30,15 +30,11 @@
 
 (deftest severity-rules-exhaustive
   (testing "every rule has required keys"
-    ;; private access via reflection not possible — just sanity check scan on a tmp dir
-    (let [tmp-dir "/tmp/pdpa-scan-test"
-          _       (.mkdirs (java.io.File. tmp-dir))
-          f       (java.io.File.
-                    (str tmp-dir "/t.txt"))
-          _       (spit f "User S0000000J contact alice@example.com"
-                        )]
-      ;; We will not spawn rg here in the test for speed; smoke check only.
-      (is (.exists f)))))
+    ;; Keep this smoke test self-contained; a fixed /tmp path would leak state
+    ;; between runs and make parallel test execution unsafe.
+    (with-tmp-file "t.txt" "User S0000000J contact alice@example.com\n"
+      (fn [dir]
+        (is (.exists (io/file dir "t.txt")))))))
 
 (deftest valid-nric-is-critical
   (testing "Mod-11 valid NRIC is flagged critical"
@@ -216,6 +212,26 @@
       (try
         (spit (io/file dir "node_modules" "dep" "index.js")
               "key AKIAIOSFODNN7EXAMPLE here\n") ; pdpa:ignore — fictional fixture
+        (spit (io/file dir "real" "leak.txt")
+              "call +6594823068 asap\n") ; pdpa:ignore — fictional fixture
+        (let [r (scan/scan (str dir))]
+          (is (= 1 (count (:findings r))))
+          (is (str/includes? (:path (first (:findings r))) "real")))
+        (finally
+          (doseq [f (reverse (file-seq dir))] (.delete f)))))))
+
+(deftest all-native-skip-globs-remain-effective
+  (testing ".git, node_modules, target, out, and .cpcache stay excluded"
+    (let [dir (io/file (System/getProperty "java.io.tmpdir")
+                       (str "pdpa-all-skip-test-" (System/nanoTime)))
+          skipped [".git" "node_modules" "target" "out" ".cpcache"]]
+      (doseq [d skipped]
+        (.mkdirs (io/file dir d)))
+      (.mkdirs (io/file dir "real"))
+      (try
+        (doseq [d skipped]
+          (spit (io/file dir d "leak.txt")
+                "key AKIAIOSFODNN7EXAMPLE here\n")) ; pdpa:ignore — fictional fixture
         (spit (io/file dir "real" "leak.txt")
               "call +6594823068 asap\n") ; pdpa:ignore — fictional fixture
         (let [r (scan/scan (str dir))]

@@ -1,7 +1,7 @@
 (ns pdpa.nric
   "Singapore NRIC / FIN detection with canonical ICA Modulo-11 algorithm.
 
-  Why Mod-11?  Because the loose regex `[STFG]\\d{7}[A-Z]` matches roughly
+  Why Mod-11? Because the loose regex `[STFG]\\d{7}[A-Z]` matches roughly
   1 in every 36M random 9-character windows — including a non-trivial
   fraction of hex strings (SHA-256 chunks, git short hashes, BSV txid
   prefixes). The Mod-11 check-digit algorithm filters structural false
@@ -17,7 +17,7 @@
 
     Prefix M (FIN — foreigners, issued 2022+):
       Same 7-digit weights [2 7 6 5 4 3 2]; prefix offset +3.
-      check-letter = \"XWUTRQPNJLK\"[idx]  (own table: J at idx 8, not M).
+      check-letter = \"XWUTRQPNJLK\"[idx] (own table: J at idx 8, not M).
 
   Reference value validation in REPL:
     (valid? \"S0100000D\")  ;; => true   (sum=7; 7 mod 11 = 7 → 'D')  pdpa:ignore fictional example
@@ -27,9 +27,12 @@
   (:require [clojure.string :as str]))
 
 (def nric-re
-  ;; Singapore NRIC (citizens / PRs): \b S/T/F/G + 7 digits + check letter
-  ;; FIN     (foreigners):           \b M       + 7 digits + check letter
-  #"(?i)\b[STFGM]\d{7}[A-Z]\b")
+  "Case-insensitive structural NRIC/FIN expression.
+
+   The public value remains a regex on both platforms; only its construction
+   differs because JavaScript RegExp has no inline `(?i)` flag."
+  #?(:clj #"(?i)\b[STFGM]\d{7}[A-Z]\b"
+     :cljs (js/RegExp. "\\b[STFGM]\\d{7}[A-Z]\\b" "i")))
 
 (def ^:private citizen-chars   "JZIHGFEDCBA")  ; S / T
 (def ^:private foreigner-chars "XWUTRQPNMLK")  ; F / G
@@ -40,8 +43,15 @@
   [s]
   (boolean (re-find nric-re s)))
 
+(defn- digit-value [ch]
+  (case (str ch)
+    "0" 0 "1" 1 "2" 2 "3" 3 "4" 4
+    "5" 5 "6" 6 "7" 7 "8" 8 "9" 9
+    (throw (ex-info (str "Not an ASCII digit: " (pr-str ch)) {:digit ch}))))
+
 (defn- digits [s]
-  (mapv #(Integer/parseInt (str %)) (re-seq #"\d" s)))
+  ;; Avoid JVM/JS integer parsing: this function is shared by both hosts.
+  (mapv digit-value (re-seq #"\d" s)))
 
 (def ^:private digit-weights [2 7 6 5 4 3 2])
 
@@ -53,7 +63,7 @@
   "Given a Singapore NRIC/FIN `nric`, return its ICA-computed check
   letter (uppercase) or nil if the input doesn't match the structural shape."
   [nric]
-  (when-let [s (some-> nric str .toUpperCase)]
+  (when-let [s (some-> nric str str/upper-case)]
     (when (re-matches nric-re s)
       (let [prefix    (first s)
             d         (digits (subs s 1 8))
@@ -65,9 +75,14 @@
                             :else foreigner-chars)]
         (nth chars idx)))))
 
+(defn check-letter
+  "Return the computed check letter as a string on every platform."
+  [nric]
+  (some-> (check-digit nric) str))
+
 (defn valid?
   "True iff `s` is a Singapore NRIC/FIN AND its last character agrees
-  with the ICA Mod-11 algorithm.  This is the false-positive guard.
+  with the ICA Mod-11 algorithm. This is the false-positive guard.
   Returns false for nil / empty input."
   [s]
   (when-let [computed (check-digit s)]
@@ -76,7 +91,7 @@
 
 (defn find-valid-nrics
   "Returns a vector of NRIC/FIN strings in `s` whose Mod-11 checksum is
-  valid.  Skips structural matches that fail the check-digit (hex string
+  valid. Skips structural matches that fail the check-digit (hex string
   guard)."
   [s]
   (->> (re-seq nric-re (or s ""))

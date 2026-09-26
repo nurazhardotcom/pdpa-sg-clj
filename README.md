@@ -94,7 +94,7 @@ Singapore's **Personal Data Protection Act 2012** (most recently revised through
 
 Plus the **Safe NRIC rule** — full NRIC/FIN collection, use or disclosure **must cease by 31 December 2026** unless you have explicit PDPC approval. After this date, the practical answer is: **do not collect NRICs at all** unless legally required.
 
-This repo ships a checklist (above), a scanner, a redactor, six policy templates, and a CLI to keep that checklist green.
+This repo ships a checklist (above), a scanner, a redactor, eight policy templates, and a CLI to keep that checklist green.
 
 ---
 
@@ -105,7 +105,8 @@ This repo ships a checklist (above), a scanner, a redactor, six policy templates
 | Tool | Why | Install |
 |------|-----|---------|
 | **Babashka ≥ 1.4** | Runs all `bb` tasks (no JVM startup) | `brew install babashka` / Linux: [babashka.org](https://babashka.org) |
-| **Clojure CLI ≥ 1.12** | Runs the library tests | [clojure.org/guides/install_clojure](https://clojure.org/guides/install_clojure) |
+| **Clojure CLI ≥ 1.12** | Runs the library/native tests | [clojure.org/guides/install_clojure](https://clojure.org/guides/install_clojure) |
+| **Node.js ≥ 18** | Runs the portable ClojureScript test bundle | [nodejs.org](https://nodejs.org/) |
 | **ripgrep (`rg`)** | Scanner backend | `apt install ripgrep` / `brew install ripgrep` |
 
 ### Install as a dependency (Clojure)
@@ -145,7 +146,7 @@ All commands operate from this directory (or set `BB_PROJECT_DIR`).
 Prints the toolkit + PDPA rule version (e.g. `pdpa-sg-clj 0.3.0 / Singapore PDPA 2026-06-21`).
 
 ### `bb init [target-dir]`
-Copies `CHECKLIST.md` + 6 policy templates into your project.
+Copies `CHECKLIST.md` + 8 policy templates into your project.
 
 ### `bb scan [path] [--format text|json|sarif|quickfix] [--out FILE]`
 Runs the PII / secret / NRIC scanner. Exit code `0` = clean.
@@ -170,7 +171,7 @@ Beyond PDPA PII (NRIC/FIN, `+65` phones, emails), the scanner ships a
 20-rule pack covering AWS keys + session tokens, JWTs, CyberArk Conjur
 keys, Slack / OpenAI / Anthropic / GCP / Azure credentials, Stripe,
 GitHub tokens, PEM keys, and hardcoded passwords/secrets. Rules live as
-tool-independent data in `src/pdpa/rules.clj` — the same pack drives the
+tool-independent data in `src/pdpa/rules.cljc` — the same pack drives the
 built-in scanner, SARIF export, and external tools:
 
 ```bash
@@ -179,13 +180,18 @@ bb export-rules --format json                          # portable rules.json
 ```
 
 ### `bb redact <file>`
-Replaces in-place (with `.redact.bak` backup) any **Mod-11-valid** NRICs, Singapore mobile numbers, and emails with `[REDACTED_*]` placeholders.
+Runs the in-place redactor (with `.redact.bak` backup) over its configured PII patterns, including **Mod-11-valid** NRICs and emails. The historical phone-expression limitation is called out below.
 
 ```bash
 $ bb redact src/users.clj
-[REDACT] src/users.clj  → 3 NRICs, 1 phone, 2 emails replaced
+[REDACT] src/users.clj  → 3 NRICs, 0 phones, 2 emails replaced
 [BACKUP] src/users.clj.redact.bak
 ```
+
+> **Preserved redaction limitation:** the historical phone expression uses
+> `;;` text where a regex comment was intended, so ordinary phone fixtures are
+> not currently replaced. This behavior is deliberately unchanged by the
+> portability extraction; correcting it is a separate follow-up.
 
 ### `bb checklist`
 Reads `CHECKLIST.md`, prints a summary table of which obligations are satisfied.
@@ -233,8 +239,8 @@ Generates a public DPO contact page from `DPO_CONTACT.template.md`.
 (require '[pdpa.core :as pdpa])
 
 ;; 1. Redact before storing/transmitting PII
-(pdpa/redact "S1234567A called +65 9123 4567 and emailed alice@example.com")
-;; => "[REDACTED_NRIC] called [REDACTED_PHONE] and emailed [REDACTED_EMAIL]"
+(pdpa/redact "S0100000D emailed alice@acme.test") ; pdpa:ignore — fictional example
+;; => "[REDACTED_NRIC] emailed [REDACTED_EMAIL]"
 
 ;; 2. Generate the checklist status programmatically
 (pdpa/checklist-status)
@@ -258,6 +264,33 @@ Generates a public DPO contact page from `DPO_CONTACT.template.md`.
 (pdpa/audit "./" {:pretty false})
 ;; => {:timestamp "2026-06-21T10:00:00Z" :compliant? true :gaps [...] :actions [...]}
 ```
+
+### Portable API (no filesystem required)
+
+Clojure and ClojureScript callers can use the same in-memory primitives:
+
+```clojure
+(require '[pdpa.detect :as detect]
+         '[pdpa.audit-context :as context])
+
+(def scan-result
+  (detect/result [{:path "input.txt"
+                   :text "User S0100000D"  ; pdpa:ignore — fictional example
+                   :line 1}]
+                 {}))
+
+(def report-context
+  (context/build {:path "input.txt"
+                  :scan-result scan-result
+                  :evidence []
+                  :compliant? (:clean? scan-result)
+                  :timestamp "2026-09-25T00:00:00Z"}))
+```
+
+`pdpa.detect` covers the configured rule pack only. A clean result is a
+scanner signal, not a complete legal compliance determination. Native
+filesystem/process commands remain in `pdpa.scan`, `pdpa.audit`, and the
+Babashka tasks.
 
 A complete end-to-end example is in [`examples/minimal_project/`](examples/minimal_project/).
 
@@ -297,18 +330,24 @@ pdpa-sg-clj/
 │   ├── nvim/pdpa.lua                    ← Neovim :PdpaScan quickfix
 │   └── pdpa-vscode/                     ← full VS Code extension source
 ├── src/pdpa/
-│   ├── core.clj                       ← public API entry point
-│   ├── nric.clj                       ← NRIC/FIN regex + Mod-11 checksum
-│   ├── redact.clj                     ← PII redaction pipeline
-│   ├── rules.clj                      ← tool-independent rule pack + exports
-│   ├── scan.clj                       ← ripgrep wrapper + classifier
-│   ├── sarif.clj                      ← SARIF 2.1.0 export
-│   ├── report.clj                     ← Markdown/HTML auditor reports
-│   ├── checklist.clj                  ← CHECKLIST.md status reader/writer
-│   ├── audit.clj                      ← orchestrator: scan + checklist + report
-│   ├── policy.clj                     ← template loader + filler
-│   └── version.clj                    ← semver + PDPA rule version
-├── test/pdpa/*_test.clj               ← cognitect test-runner tests (7 namespaces)
+│   ├── core.clj                       ← native public API entry point
+│   ├── detect.cljc                    ← portable in-memory classifier/result
+│   ├── audit_context.cljc              ← portable report context/boundary
+│   ├── policy_template.cljc            ← portable template filler
+│   ├── json.cljc / clock.cljc          ← platform adapters
+│   ├── nric.cljc                       ← NRIC/FIN regex + Mod-11 checksum
+│   ├── redact.cljc                     ← portable text pipeline + native I/O branch
+│   ├── rules.cljc                      ← tool-independent rule pack + exports
+│   ├── scan.clj                        ← native ripgrep adapter → detect
+│   ├── sarif.cljc                      ← SARIF 2.1.0 export
+│   ├── report.cljc                     ← Markdown/HTML auditor reports
+│   ├── checklist.cljc                  ← portable status/marker transform
+│   ├── audit.clj                       ← native orchestrator
+│   ├── policy.clj                      ← native resource/file template adapter
+│   └── version.cljc                    ← semver + PDPA rule version
+├── test/pdpa/*_test.cljc               ← portable tests; scan_test.clj stays native
+├── test/pdpa/test_runner.cljs            ← Node ClojureScript test entry point
+├── test/pdpa/portable_fixtures.cljc    ← shared fictional parity fixtures
 ├── resources/policies/
 │   ├── PRIVACY_POLICY.template.md
 │   ├── DPO_CONTACT.template.md
@@ -325,9 +364,16 @@ pdpa-sg-clj/
 
 ```bash
 cd pdpa-sg-clj
-bb test       # babashka + clojure test suite
-bb audit .    # scan this repo — should report 0 HIGH, 0 CRITICAL
+bb test           # Babashka/native + portable JVM tests
+clojure -M:test   # JVM test runner
+bb test:cljs      # same portable suite compiled and run on Node
+clj-kondo --lint src test scripts --fail-level warning
+bb scan src/pdpa  # bounded native scan; vendor/build skip globs stay enabled
 ```
+
+`bb audit .` remains the native end-to-end command when a full local audit is
+wanted. It is intentionally separate from the portable test boundary; the
+portable suite does not claim filesystem or legal-compliance coverage.
 
 ---
 
@@ -348,10 +394,32 @@ Run `bb about` any time to see the rule version stamp.
 
 ## 🛠️ Tech stack
 
-- **Clojure 1.12** — language
+- **Clojure 1.12** — native JVM/CLI language
+- **ClojureScript 1.12** — portable in-memory core, compiled/tested on Node
 - **Babashka 1.4+** — CLI tasks (zero JVM startup)
-- **Cheshire 5.13** — JSON
-- **ripgrep** — scanner backend (via `babashka.process/sh`)
+- **Cheshire 5.13 / host JSON** — platform JSON adapter
+- **ripgrep** — native scanner backend (via `babashka.process/sh`)
+
+### Portable core and native boundary
+
+The rule/data/report primitives are now `.cljc` and are exercised by the
+same fictional fixtures on the JVM and Node:
+
+- `pdpa.detect` matches caller-supplied line records and builds the stable
+  `{:findings :counts :clean?}` result.
+- `pdpa.audit-context` accepts an injected report timestamp and exposes an
+  explicit incomplete-compliance boundary.
+- `pdpa.policy-template` fills an in-memory template; resource and file I/O
+  remain in the native `pdpa.policy` adapter.
+- `pdpa.json` and `pdpa.clock` isolate platform JSON and time behavior.
+- `pdpa.scan` remains the native `rg --json` adapter and delegates detection
+  to `pdpa.detect/result`; its existing skip globs are unchanged.
+
+ClojureScript does not receive filesystem traversal, process invocation, or
+resource loading in this track. No browser `File`/Worker adapter or Reagent
+dependency is claimed. The detector and compliance signal are intentionally
+incomplete: see `detect/coverage-boundary` and
+`audit-context/compliance-boundary` in the source and `ARCHITECTURE.md`.
 
 ---
 

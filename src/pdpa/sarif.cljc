@@ -3,9 +3,9 @@
 
   Why SARIF? Auditors and CI systems speak it natively: GitHub code
   scanning ingests it (`github/codeql-action/upload-sarif`), and the VS
-  Code SARIF Viewer renders it inline. Pure data + cheshire, so it runs
-  identically on Babashka and JVM Clojure."
-  (:require [cheshire.core :as json]
+  Code SARIF Viewer renders it inline. Pure data + the platform JSON
+  adapter, so it runs on Babashka, JVM Clojure, and ClojureScript."
+  (:require [pdpa.json :as json]
             [pdpa.version :as version]))
 
 (def schema-uri

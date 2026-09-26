@@ -1,4 +1,5 @@
 .cpcache/
+.cljs_node_repl/
 *.class
 /target/
 /out/

@@ -25,39 +25,101 @@
         ┌──────────────┼──────────────┬──────────────────┐
         ▼              ▼              ▼                  ▼
 ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐
-│   nric.clj   │ │  redact.clj  │ │   scan.clj   │ │ checklist.clj│
+│   nric.cljc  │ │  redact.cljc │ │   scan.clj   │ │ checklist.cljc│
 │  ─ mod11     │ │  ─ pipeline  │ │  ─ rg --json │ │  ─ md parser │
 │  ─ regex     │ │  ─ placehldrs│ │  ─ classify  │ │  ─ mark      │
 └──────────────┘ └──────────────┘ └──────┬───────┘ └──────────────┘
                                         │ compiles
                                         ▼
                                  ┌──────────────┐ ┌──────────────┐
-                                 │  rules.clj   │ │  sarif.clj   │
+                                 │  rules.cljc  │ │  sarif.cljc  │
                                  │  ─ rule pack │ │  ─ SARIF out │
                                  │  ─ exports   │ │  ─ 2.1.0 log │
                                  └──────────────┘ └──────────────┘
 
 ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐
-│  audit.clj   │ │  policy.clj  │ │  version.clj │ │  report.clj  │
+│  audit.clj   │ │  policy.clj  │ │  version.cljc│ │  report.cljc │
 │  ─ orchestr. │ │  ─ templates │ │  ─ rule stamp│ │  ─ md / html │
 └──────────────┘ └──────────────┘ └──────────────┘ └──────────────┘
 ```
+
+### Portable core / native adapters
+
+The extraction keeps the public namespaces and command surface stable while
+making the in-memory rules genuinely usable from ClojureScript. Portable
+namespaces accept and return ordinary Clojure data; they do not walk a
+filesystem or start a process.
+
+```
+caller text / scan lines
+          │
+          ▼
+    pdpa.detect ───────────────┐
+          │                    │
+          ├─ pdpa.nric          │
+          ├─ pdpa.redact        │
+          ├─ pdpa.rules         │
+          ├─ pdpa.sarif         │
+          ├─ pdpa.checklist     │
+          ├─ pdpa.report        │
+          └─ pdpa.audit-context │
+                               │
+native pdpa.scan ── rg --json ─┘
+native pdpa.audit/policy ── files, resources, process, clock adapter
+```
+
+| Namespace/file | Role | Platform boundary |
+|---|---|---|
+| `detect.cljc` | Compiles the shared rule pack, classifies line records, and builds the stable result | No process or filesystem; incomplete rule-pack coverage is explicit in `detect/coverage-boundary` |
+| `audit_context.cljc` | Builds deterministic report context and preserves the historical scanner compliance signal | Timestamp is injected by the native caller; it does not certify legal compliance |
+| `policy_template.cljc` | Replaces `<<KEY>>` placeholders in an in-memory template | Resource lookup and writes remain in `policy.clj` |
+| `nric.cljc`, `redact.cljc`, `rules.cljc`, `sarif.cljc`, `checklist.cljc`, `report.cljc`, `version.cljc` | Shared text/data/report primitives | JSON is behind `pdpa.json`; clock is behind `pdpa.clock`; native I/O branches are explicit |
+| `json.cljc`, `clock.cljc` | Small platform adapters | Cheshire/Java on the JVM and host JSON/Date in JavaScript |
+| `scan.clj` | Native ripgrep adapter | Keeps `--no-ignore` and the existing `.git/`, `node_modules/`, `target/`, `out/`, `.cpcache/` skip globs; delegates to `detect/result` |
+| `audit.clj`, `policy.clj`, `init.clj`, `shipit.clj`, `core.clj` | Native orchestration/API compatibility | Filesystem, process, resource, and CLI concerns stay here |
+
+No browser `File`/Worker adapter is included in this track. Adding one would
+be an independent adapter decision; the portable core is tested through
+Node and does not claim browser filesystem coverage.
+
+### Preserved behavior and explicit boundaries
+
+- `scan/scan` still returns the same `{:findings :counts :clean?}` shape and
+  still uses the native skip globs. Detection order and one-finding-per-line
+  behavior are unchanged.
+- Checklist marker semantics are intentionally unchanged: a marker makes only
+  a following checkbox eligible; it is not retroactive. The bundled checklist
+  places its markers after the section boxes, so this limitation remains
+  visible rather than being silently “fixed.”
+- The native audit/report wording is intentionally unchanged. Its
+  `COMPLIANT`/zero-critical signal is a scanner gate, not a complete PDPA
+  assessment; `audit-context/compliance-boundary` records that limitation.
+- The historical `redact/phone-re` expression is preserved as-is, including
+  its `;;`-comment/literal behavior; the phone-redaction correction is a
+  separate follow-up, not part of this extraction.
+- The portable detector covers the configured rule pack and Mod-11 validation
+  only. Filesystem traversal, binary decoding, contextual PII inference, and
+  legal compliance certification are outside its contract.
 
 ### Namespaces
 
 | File | Purpose | Standalone deps |
 |---|---|---|
-| `nric.clj` | NRIC/FIN regex + Mod-11 check-digit algorithm | `clojure.string` only |
-| `redact.clj` | Pipeline: text → (NRIC/phone/email/name) → `[REDACTED_*]` | `pdpa.nric` |
-| `scan.clj` | Wraps `rg --json`, classifies via compiled `pdpa.rules` pack | `babashka.process`, `cheshire`, `pdpa.rules` |
-| `rules.clj` | Tool-independent rule pack (PII + secrets data) + gitleaks/JSON exports | `clojure.string`, `cheshire` (export only) |
-| `sarif.clj` | Scan result → SARIF 2.1.0 log | `cheshire`, `pdpa.version` |
-| `report.clj` | Audit context → Markdown / standalone HTML executive report | `clojure.string`, `pdpa.version` |
-| `checklist.clj` | Parses + writes `CHECKLIST.md`; applies auto-ticks | `clojure.string` only |
-| `audit.clj` | Orchestrator: scan → checklist → report | all of above |
-| `policy.clj` | Loads templates, fills `<<ORG_NAME>>` markup | only `clojure.string` |
-| `core.clj` | Public API — re-exports happy-path helpers | everything |
-| `version.clj` | Single source of rule version + PDPA stamp | none |
+| `detect.cljc` | In-memory rule matching, line classification, stable result aggregation | `pdpa.nric`, `pdpa.rules` |
+| `audit_context.cljc` | Deterministic report context + explicit incomplete compliance boundary | `clojure.string` |
+| `policy_template.cljc` | In-memory `<<KEY>>` template rendering | `clojure.string` |
+| `nric.cljc` | NRIC/FIN regex + Mod-11 check-digit algorithm | `clojure.string` only |
+| `redact.cljc` | Portable text pipeline plus native file/CLI branch | `pdpa.nric`; `clojure.java.io` under `:clj` |
+| `rules.cljc` | Tool-independent rule pack (PII + secrets data) + gitleaks/JSON exports | `pdpa.json` (platform adapter) |
+| `sarif.cljc` | Scan result → SARIF 2.1.0 map/string | `pdpa.json`, `pdpa.version` |
+| `report.cljc` | Audit context → Markdown / standalone HTML executive report | `pdpa.clock`, `pdpa.version` |
+| `checklist.cljc` | Portable marker/status transformation; native CLI branch | `clojure.string` |
+| `scan.clj` | Wraps `rg --json`; delegates classification to `pdpa.detect` | `babashka.process`, `cheshire`, `pdpa.detect` |
+| `audit.clj` | Orchestrator: scan → checklist → injected report context | native filesystem/process adapter + portable modules |
+| `policy.clj` | Loads templates and delegates in-memory filling | `pdpa.policy-template`; `clojure.java.io` |
+| `core.clj` | Public API — re-exports happy-path helpers | native compatibility layer |
+| `version.cljc` | Single source of rule version + PDPA stamp | none |
+| `json.cljc` / `clock.cljc` | JSON and clock platform boundaries | Cheshire/Java or host JS APIs |
 | `bb/init.bb` (logical) | Copies CHECKLIST + templates into target dir | `babashka.fs`, `babashka.cli` |
 
 ### Key algorithms
@@ -77,17 +139,18 @@ M prefix (2022+): same 7-digit weights, +3 offset, own table
 Valid iff check-char matches the last character (upper-cased).
 ```
 
-Implemented fully in `src/pdpa/nric.clj`.
+Implemented fully in `src/pdpa/nric.cljc`.
 
 #### `pdpa.redact/redact-text` — pipeline
 
 1. Find all NRIC-shaped matches via `\b[STFG]\d{7}[A-Z]\b` **and** `M\d{7}[A-Z]\b` (FINs)
 2. Filter with `chksum-valid?` — **prevents false positives on hex strings**
-3. Find SG mobile numbers `\b(?:[89]\d{7}|9\d{3}\s?\d{4})\b`
+3. Find the historical SG phone expression (its `;;` comment/literal
+   behavior is preserved; see the follow-up contract)
 4. Find emails (RFC 5322 simplified)
 5. Replace with `[REDACTED_NRIC]`, `[REDACTED_PHONE]`, `[REDACTED_EMAIL]`
 
-#### `pdpa.scan/classify` — severity mapping
+#### `pdpa.detect/classify` — severity mapping
 
 | Pattern | Severity | Why |
 |---|---|---|
@@ -99,18 +162,24 @@ Implemented fully in `src/pdpa/nric.clj`.
 | Email address | **LOW** | May be contact, may be test |
 | `password=` with non-empty value | **MEDIUM** | Risk even if test |
 
-#### `pdpa.checklist/auto-tick?`
+#### `pdpa.checklist/auto-tick`
 
-For each obligation, defines a `verify-fn` returning `true` when auto-tick is justified:
+For each obligation, the namespace defines a verifier against the supplied
+scan counts/evidence. The implementation is intentionally unchanged during
+this extraction:
 
 ```
-(verify :protection (fn [ctx] (zero? (get-in ctx [:scan :high]))))
-(verify :purpose    (fn [ctx] (zero? (get-in ctx [:scan :medium]))))
-(verify :breach     (fn [ctx] (every? (set (:checklist ctx))
-                                       [:plan-published :drill-completed])))
+(verify :purpose (fn [ctx] (zero? (get-in ctx [:scan :counts :medium]))))
+(verify :protection (fn [ctx]
+                      (and (zero? (get-in ctx [:scan :counts :critical]))
+                           (zero? (get-in ctx [:scan :counts :high]))
+                           (some #(= "SECURITY_HARDENING" %) (:evidence ctx)))))
 ```
 
-The CHECKLIST.md file uses hidden HTML-comment markers like `<!-- agent:verify-protection -->` to map obligations to verifier functions.
+The CHECKLIST.md file uses HTML-comment markers like
+`<!-- agent:verify-protection -->`. A marker arms only the next matching
+checkbox after it; it does not tick earlier boxes. This is a characterized
+preserved limitation, not a corrected behavior in the portability track.
 
 ## Date 21 June 2026 — what we encode
 
@@ -123,10 +192,13 @@ The CHECKLIST.md file uses hidden HTML-comment markers like `<!-- agent:verify-p
 
 | Test file | Cases |
 |---|---|
-| `nric_test.clj` | valid S-series redacts, valid M-series FIN redacts, structural match with bad checksum does NOT redact (false-positive guard), valid NRIC survives round-trip |
-| `redact_test.clj` | NRIC redaction, phone redaction, SG mobile vs landline, email redaction, multi-PII in same string, idempotency |
-| `scan_test.clj` | rg `--json` output parses, severity classification, exit code 0 = clean flag |
-| `checklist_test.clj` | parses CHECKLIST.md, applies auto-ticks correctly, leaves manual boxes alone |
+| `nric_test.cljc` | valid S-series redacts, valid M-series FIN redacts, structural match with bad checksum does NOT redact (false-positive guard), valid NRIC survives round-trip |
+| `redact_test.cljc` | NRIC/email redaction, historical phone-pattern characterization, multi-PII in same string, idempotency |
+| `rules_test.cljc`, `sarif_test.cljc`, `report_test.cljc` | portable rule compilation, JSON/SARIF adapters, deterministic report output |
+| `checklist_test.cljc` | portable status/marker transformation; marker-placement limitation is characterized |
+| `portable_test.cljc` + `portable_fixtures.cljc` | shared fictional parity cases, incomplete detector/compliance boundaries, injected timestamps, template rendering |
+| `scan_test.clj` | native rg process/filesystem behavior, skip globs, path exclusions, and exit-shape smoke coverage |
+| `clojure -M:test:cljs` | the portable `.cljc` namespaces under Node, without native scan/filesystem tests |
 
 ## Why Babylon splits (nric/redact/scan/checklist/policy/audit/core/version)?
 
@@ -139,6 +211,12 @@ The CHECKLIST.md file uses hidden HTML-comment markers like `<!-- agent:verify-p
 
 - [x] `gitleaks` interop — done as one-way export (`bb export-rules --format gitleaks`);
   a live `--backend gitleaks` merge remains optional
+- [ ] Correct checklist marker placement/semantics in a separate behavior
+  change; the current placement limitation is intentionally preserved here
+- [ ] Replace native scanner-gate compliance wording with a separately reviewed
+  legal/compliance vocabulary; the current wording is intentionally preserved
+- [ ] Add a browser `File`/Worker adapter only with independent, offline tests;
+  no Reagent dependency is part of this track
 - [ ] Differential privacy layer for analytics (Obligation 6)
 - [x] CI workflow template (GitHub Actions YAML) for `bb audit` on every push
   — done: `.github/workflows/ci.yml` (test job + SARIF scan job)

@@ -47,16 +47,17 @@ Output (example):
 bb redact ../minimal_project/users.clj
 ```
 
-After redaction:
+After redaction, the historical phone expression still leaves phone fields
+unchanged; the NRIC/email behavior is shown here:
 
 ```clojure
 (ns minimal-project.users
   (:require [clojure.string :as str]))
 
 (def users
-  [{:name "Alice Tan"  :ic "[REDACTED_NRIC]"   :phone "[REDACTED_PHONE]" :email "[REDACTED_EMAIL]"}
-   {:name "Bob Lim"    :ic "[REDACTED_NRIC]"   :phone "[REDACTED_PHONE]" :email "[REDACTED_EMAIL]"}
-   {:name "Carol Wong" :ic "[REDACTED_NRIC]"   :phone "[REDACTED_PHONE]" :email "[REDACTED_EMAIL]"}])
+  [{:name "Alice Tan"  :ic "[REDACTED_NRIC]"   :phone "+65 9123 4567" :email "[REDACTED_EMAIL]"} ; pdpa:ignore — fictional example
+   {:name "Bob Lim"    :ic "[REDACTED_NRIC]"   :phone "+65 9876 5432" :email "[REDACTED_EMAIL]"} ; pdpa:ignore — fictional example
+   {:name "Carol Wong" :ic "[REDACTED_NRIC]"   :phone "+65 8234 5678" :email "[REDACTED_EMAIL]"}]) ; pdpa:ignore — fictional example
 
 ;; ... plus a *.redact.bak backup of the original
 ```

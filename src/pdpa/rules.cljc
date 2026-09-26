@@ -5,7 +5,7 @@
   `pdpa.scan` compiles `:pattern` strings to matchers at load; exporters
   (`->gitleaks-toml`, `->rules-json`) ship the same pack to other tools,
   so one rule list drives Babashka, JVM Clojure, gitleaks, and IDE configs
-  identically.
+  identically through the platform JSON adapter.
 
   Rule map keys:
     :id      keyword, stable across exports (SARIF ruleId = \"pdpa/<id>\")
@@ -16,7 +16,8 @@
     :exclude regex STRING, optional negative guard (same-line)
     :code    keyword naming a code-backed validator (only :nric-valid today)
     :refs    documentation links for the finding"
-  (:require [clojure.string :as str]))
+  (:require [clojure.string :as str]
+            [pdpa.json :as json]))
 
 (def rule-pack
   "The full detection pack: PII (PDPA) + secrets (DevSecOps)."
@@ -195,7 +196,7 @@
 (defn ->rules-json
   "Render the FULL pack (PII + secrets) as portable JSON for any consumer."
   []
-  ((requiring-resolve 'cheshire.core/generate-string)
+  (json/generate-string
    (mapv #(select-keys % [:id :label :sev :kind :pattern :exclude :code :refs])
           rule-pack)
    {:pretty true}))
@@ -204,35 +205,46 @@
 ;; Babashka entry point
 ;; ---------------------------------------------------------------------
 
-(defn run
-  "Babashka entry point. Usage: `bb export-rules [--format gitleaks|json]
-  [--out FILE]`. Prints to stdout unless --out is given."
-  [args]
-  (let [[fmt out]
-        (loop [xs (seq args) fmt "gitleaks" out nil]
-          (if (nil? xs)
-            [fmt out]
-            (let [a (first xs) r (next xs)]
-              (cond
-                (= a "--format")
-                (recur (next r) (or (first r) fmt) out)
+(defn unsupported-platform! [operation]
+  (throw (ex-info (str operation " is native-only and is unavailable in ClojureScript")
+                  {:operation operation :platform :cljs})))
 
-                (str/starts-with? a "--format=")
-                (recur r (subs a (count "--format=")) out)
+#?(:clj
+   (defn run
+     "Babashka entry point. Usage: `bb export-rules [--format gitleaks|json]
+     [--out FILE]`. Prints to stdout unless --out is given."
+     [args]
+     (let [[fmt out]
+           (loop [xs (seq args) fmt "gitleaks" out nil]
+             (if (nil? xs)
+               [fmt out]
+               (let [a (first xs) r (next xs)]
+                 (cond
+                   (= a "--format")
+                   (recur (next r) (or (first r) fmt) out)
 
-                (= a "--out")
-                (recur (next r) fmt (first r))
+                   (str/starts-with? a "--format=")
+                   (recur r (subs a (count "--format=")) out)
 
-                (str/starts-with? a "--out=")
-                (recur r fmt (subs a (count "--out=")))
+                   (= a "--out")
+                   (recur (next r) fmt (first r))
 
-                :else (recur r fmt out)))))
-        body (case fmt
-               "json"     (->rules-json)
-               "gitleaks" (->gitleaks-toml)
-               (throw (ex-info (str "Unknown format: " fmt
-                                    " (expected gitleaks|json)")
-                               {:format fmt})))]
-    (if out
-      (do (spit out body) (println (str "[EXPORT] wrote " out " (" fmt ")")))
-      (println body))))
+                   (str/starts-with? a "--out=")
+                   (recur r fmt (subs a (count "--out=")))
+
+                   :else (recur r fmt out)))))
+           body (case fmt
+                  "json"     (->rules-json)
+                  "gitleaks" (->gitleaks-toml)
+                  (throw (ex-info (str "Unknown format: " fmt
+                                       " (expected gitleaks|json)")
+                                  {:format fmt})))]
+       (if out
+         (do (spit out body) (println (str "[EXPORT] wrote " out " (" fmt ")")))
+         (println body))))
+
+   :cljs
+   (defn run
+     "Native-only CLI placeholder for API compatibility."
+     [args]
+     (unsupported-platform! (str "export-rules " (pr-str args)))))

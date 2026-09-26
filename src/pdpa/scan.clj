@@ -8,9 +8,8 @@
   well-structured JSON.  We never re-implement walking."
   (:require [cheshire.core :as json]
             [clojure.string  :as str]
-            [pdpa.nric      :as nric]
-            [pdpa.rules     :as rules]
-            [pdpa.sarif     :as sarif]))
+            [pdpa.detect     :as detect]
+            [pdpa.sarif      :as sarif]))
 
 ;; -------------------------------------------------------------------------
 ;; Forward declaration: parse-rg-match is referenced by the rg-line-seq
@@ -20,37 +19,11 @@
 ;; -------------------------------------------------------------------------
 (declare parse-rg-match)
 
-;; ---------------------------------------------------------------------
-;; Severity classification rules — compiled from the tool-independent
-;; `pdpa.rules/rule-pack` so one rule list drives every backend/export.
-;; ---------------------------------------------------------------------
-
-(defn- compile-matcher
-  "Build a {:id :label :sev :match-fn} classifier from a data rule.
-  Code-backed rules (only :nric-valid) keep their validator; everything
-  else compiles the portable :pattern / :exclude regex strings."
-  [{:keys [id label sev pattern exclude code]}]
-  {:id id :label label :sev sev
-   :match-fn (cond
-               (= :nric-valid code)
-               (fn [text _path] (seq (nric/find-valid-nrics text)))
-
-               (some? pattern)
-               (let [re (re-pattern pattern)
-                     ex (when exclude (re-pattern exclude))]
-                 (fn [text _path]
-                   (let [t (or text "")]
-                     (boolean
-                       (and (re-find re t)
-                            (not (and ex (re-find ex t))))))))
-
-               :else
-               (throw (ex-info (str "Rule has neither :pattern nor :code: " id)
-                               {:rule id})))})
-
-(def ^:private severity-rules
-  "Classifiers compiled from the tool-independent `pdpa.rules/rule-pack`."
-  (mapv compile-matcher rules/rule-pack))
+;; -------------------------------------------------------------------------
+;; Detection is implemented by the portable `pdpa.detect` namespace. This
+;; adapter owns only ripgrep/process/filesystem concerns and keeps the
+;; historical skip globs and line parsing below unchanged.
+;; -------------------------------------------------------------------------
 
 
 ;; ---------------------------------------------------------------------
@@ -124,54 +97,24 @@
 ;; Public API
 ;; ---------------------------------------------------------------------
 
-(defn- classify [text path]
-  (some #(when ((:match-fn %) text path) %) severity-rules))
-
 (def ignore-marker
-  "Lines containing this marker are excluded from findings.
-   Use for intentional documentation examples:
-     sed -i 's/S0466008B/S********G/g' ... # pdpa:ignore — fictional example
-   or in Markdown prose:
-     <!-- pdpa:ignore --> S0466008B is a fictional example value"
-  "pdpa:ignore")
+  "Compatibility alias for the portable detector's intentional-example marker."
+  detect/ignore-marker)
 
-(defn- ignored? [text]
-  (str/includes? (or text "") ignore-marker))
-
-(defn- excluded?
-  "True when `path` contains any of the `:excludes` substrings.
-  Used to keep intentional fixtures (e.g. test PII) out of production
-  gates and SARIF uploads. Pure substring match — deterministic."
+(defn excluded?
+  "Compatibility wrapper for the portable detector's substring filter."
   [path excludes]
-  (boolean (some #(str/includes? (str path) (str %)) excludes)))
+  (detect/excluded? path excludes))
 
 (defn scan
-  "Walks `path` with ripgrep, classifies findings.
+  "Walks `path` with ripgrep, then delegates classification to
+  `pdpa.detect/result`.
   Returns {:findings [...], :counts {:critical N :high N ...}, :clean? ...}.
   Opts: {:excludes [substr ...]} drops findings whose path contains any
   substring (e.g. [\"test/\"] keeps fixtures out of production alerts)."
-  ([path]    (scan path {}))
-   ([path {:keys [excludes]}]
-    (let [findings (keep (fn [{:keys [text path line]}]
-                           (when-not (or (ignored? text)
-                                         (excluded? path excludes))
-                              (when-let [rule (classify text path)]
-                                {:severity (:sev rule)
-                                 :id       (:id rule)
-                                 :label    (:label rule)
-                                 :path     path
-                                 :line     line})))
-                         (rg-line-seq path))
-         counts   (->> findings
-                       (group-by :severity)
-                       (reduce-kv (fn [m k v] (assoc m k (count v))) {}))
-         counts   (merge (zipmap [:critical :high :medium :low :info]
-                                 (repeat 0))
-                        counts)]
-     {:findings findings
-      :counts   counts
-      :clean?   (and (zero? (:critical counts))
-                     (zero? (:high counts)))})))
+  ([path] (scan path {}))
+  ([path {:keys [excludes]}]
+   (detect/result (rg-line-seq path) {:excludes excludes})))
 
 ;; ---------------------------------------------------------------------
 ;; Babashka entry point

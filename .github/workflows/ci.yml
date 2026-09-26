@@ -23,11 +23,30 @@ jobs:
           chmod +x install
           sudo ./install
 
+      - name: Install Java and Clojure CLI
+        run: |
+          sudo apt-get update && sudo apt-get install -y openjdk-17-jre-headless
+          curl -sSLo /tmp/clojure-install.sh https://download.clojure.org/install/linux-install-1.12.0.1530.sh
+          chmod +x /tmp/clojure-install.sh
+          sudo /tmp/clojure-install.sh
+          clojure -Sdescribe
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+
       - name: Install ripgrep
         run: sudo apt-get update && sudo apt-get install -y ripgrep
 
-      - name: Run test suite
-        run: bb test
+      - name: Run Babashka/native and portable JVM tests
+        run: |
+          bb test
+          clojure -M:test
+
+      - name: Run portable ClojureScript tests on Node
+        run: |
+          node --version
+          clojure -M:test:cljs
 
   lint:
     runs-on: ubuntu-latest

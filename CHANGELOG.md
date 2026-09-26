@@ -8,11 +8,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Portable extraction boundary: `detect.cljc`, `audit_context.cljc`, and
+  `policy_template.cljc`, plus small `json.cljc` / `clock.cljc` adapters.
+- Shared fictional parity fixtures in `test/pdpa/portable_fixtures.cljc` and
+  Node ClojureScript coverage via `clojure -M:test:cljs` (also exposed as
+  `bb test:cljs`).
+- Explicit incomplete-coverage contracts for the in-memory detector and the
+  historical scanner compliance signal.
 - CI `example-audit` job (`.github/workflows/ci.yml`) exercising the
   documented onboarding path end to end: `bb scan examples/minimal_project`
   plus `bb audit examples/minimal_project` must both exit 0.
 - CI `lint` job: `clj-kondo --lint src test scripts --fail-level warning`
   (pinned v2026.08.04 release, SHA-256 verified).
+
+### Changed
+- `nric`, `redact`, `rules`, `sarif`, `checklist`, `report`, and `version` are
+  now portable `.cljc` namespaces. JVM/JS parsing differences are isolated;
+  native I/O and process behavior remain in the CLJ adapters.
+- Native `pdpa.scan` now delegates classification/result aggregation to
+  `pdpa.detect/result` while retaining the exact native skip globs and result
+  shape.
+- Report timestamps are injected into the audit context by the native
+  orchestrator, keeping report fixtures deterministic.
+- Portable tests are `.cljc`; `scan_test.clj` and other filesystem/process
+  coverage remain native. CI now runs the Node suite as well as Babashka and
+  JVM tests.
+
+### Preserved limitations / follow-up
+- Checklist marker placement/semantics are characterized but not changed. A
+  marker only arms a following checkbox; the bundled file's current placement
+  remains as-is.
+- Native compliance wording remains unchanged. Its scanner-based
+  `COMPLIANT`/zero-critical signal is not a complete PDPA or legal
+  determination; wording changes require a separate reviewed behavior track.
+- The historical `redact/phone-re` `;;` comment/literal behavior is retained
+  and characterized by the shared fixture; correcting phone redaction is a
+  separate behavior change.
 
 ### Fixed
 - `clj-kondo` clean (was 13 warnings): removed dead private fns
@@ -22,7 +53,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   offset now applies to T/G only (was: all prefixes), and the F/G/M
   table tail is corrected to `...MLK` (was: `...KLM`). Canonical
   community vectors now validate; previous outputs correctly fail —
-  see `nric_test.clj`. M prefix (2022+ FINs): same 7-digit weights,
+  see `nric_test.cljc`. M prefix (2022+ FINs): same 7-digit weights,
   +3 offset, own table with J at idx 8 (was: value-3 prepend, +4
   offset, shared table) — corroborated by independent validators.
 

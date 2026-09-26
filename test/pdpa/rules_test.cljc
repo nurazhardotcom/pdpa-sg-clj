@@ -1,6 +1,8 @@
 (ns pdpa.rules-test
   (:require [clojure.test :refer [deftest testing is]]
             [clojure.string :as str]
+            [pdpa.detect :as detect]
+            [pdpa.json :as json]
             [pdpa.rules :as rules]))
 
 (deftest pack-schema-valid
@@ -19,7 +21,7 @@
   (testing "every :pattern string compiles to a regex"
     (doseq [{:keys [id pattern]} rules/rule-pack
             :when (string? pattern)]
-      (is (instance? java.util.regex.Pattern (re-pattern pattern))
+      (is (some? (detect/compile-matcher {:id id :pattern pattern}))
           (str "uncompilable pattern: " id)))))
 
 (deftest pack-covers-requested-secrets
@@ -43,7 +45,6 @@
 
 (deftest json-export-parses
   (testing "rules JSON is the full pack in portable form"
-    (let [parsed ((requiring-resolve 'cheshire.core/parse-string)
-                  (rules/->rules-json) true)]
+    (let [parsed (json/parse-string (rules/->rules-json) true)]
       (is (= (count rules/rule-pack) (count parsed)))
       (is (every? :id parsed)))))

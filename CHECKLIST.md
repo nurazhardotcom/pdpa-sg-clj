@@ -213,6 +213,6 @@ Run `bb scan` to auto-verify the protected-item markers above.
 The CLI reads `CHECKLIST.md`, looks for HTML-comment markers like
 `<!-- agent:verify-protection -->` after a numbered obligation heading,
 and ticks the **first** `[ ]` checkbox under that heading **iff** the relevant
-scanner passes. The mapping is in `src/pdpa/checklist.clj`.
+scanner passes. The mapping is in `src/pdpa/checklist.cljc`.
 
 Manual ticks (any box without an auto-marker) are still your responsibility.

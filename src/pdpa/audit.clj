@@ -13,6 +13,8 @@
             [clojure.string  :as str]
             [pdpa.scan       :as scan]
             [pdpa.checklist  :as checklist]
+            [pdpa.audit-context :as context]
+            [pdpa.clock      :as clock]
             [pdpa.version    :as version]))
 
 ;; ---------------------------------------------------------------------
@@ -153,12 +155,12 @@
                          (zero? (or (:high    c) 0)))
         fmt         (or (:format opts) "text")
         out         (:out opts)
-        ts          (str (java.time.Instant/now))
-        ctx         {:path        path
-                     :scan-result scan-res
-                     :evidence    (vec evidence)
-                     :compliant?  compliant?
-                     :timestamp   ts}
+        ts          (clock/now-stamp)
+        ctx         (context/build {:path        path
+                                   :scan-result scan-res
+                                   :evidence    (vec evidence)
+                                   :compliant?  compliant?
+                                   :timestamp   ts})
         body        (case fmt
                       "text" nil
                       "json" (json/generate-string

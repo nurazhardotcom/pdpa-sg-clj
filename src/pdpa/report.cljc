@@ -2,19 +2,49 @@
   "Executive / auditor report rendering.
 
   Emits Markdown and standalone, print-friendly HTML from an audit
-  context map. Pure string templating + `pdpa.version` — no extra deps,
-  runs on Babashka. Auditors convert to PDF for ISO 27001
-  filings with one of (documented in README):
+  context map. Timestamp acquisition is isolated in `pdpa.clock`; callers
+  should inject `:timestamp` so report output is deterministic. Auditors
+  convert to PDF for ISO 27001 filings with one of (documented in README):
 
     pandoc audit.md -o audit.pdf
     google-chrome --headless --print-to-pdf=audit.pdf audit.html"
   (:require [clojure.string :as str]
+            [pdpa.clock :as clock]
             [pdpa.version :as version]))
 
 (defn now-stamp
-  "Current UTC instant as an ISO-8601 string. BB + JVM safe."
+  "Current UTC instant as an ISO-8601 string. Prefer an injected context
+  timestamp for deterministic reports."
   []
-  (str (java.time.Instant/now)))
+  (clock/now-stamp))
+
+(defn- format-string [template & args]
+  #?(:clj (apply clojure.core/format template args)
+     :cljs
+     (loop [characters (seq template)
+            remaining args
+            rendered ""]
+       (if (nil? characters)
+         (if (empty? remaining)
+           rendered
+           (throw (ex-info "Not enough values for report format"
+                           {:template template :values remaining})))
+         (let [token (when (next characters)
+                       (str (first characters) (second characters)))]
+           (cond
+             (= "%%" token)
+             (recur (nnext characters) remaining (str rendered "%"))
+
+             (contains? #{"%s" "%d"} token)
+             (if (empty? remaining)
+               (throw (ex-info "Not enough values for report format"
+                               {:template template :values remaining}))
+               (recur (nnext characters)
+                      (rest remaining)
+                      (str rendered (first remaining))))
+
+             :else
+             (recur (next characters) remaining (str rendered (first characters)))))))))
 
 (defn- esc
   "Minimal HTML escaping for interpolated values."
@@ -37,7 +67,7 @@
         low    (or (:low c) 0)
         ev     (or (seq evidence) ["(none)"])
         f-row  (fn [{:keys [severity label path line]}]
-                 (format "| %s | %s | %s:%s |"
+                 (format-string "| %s | %s | %s:%s |"
                          (str/upper-case (name (or severity :info)))
                          (or label "") (or path "") (or line "")))]
     (str "# PDPA compliance audit report\n\n"
@@ -47,7 +77,7 @@
          "- **Verdict:** " (if compliant? "✅ COMPLIANT" "⚠️ ACTION REQUIRED") "\n\n"
          "## Finding counts\n\n"
          "| Severity | Count |\n|---|---|\n"
-         (format "| Critical | %d |\n| High | %d |\n| Medium | %d |\n| Low | %d |\n\n"
+         (format-string "| Critical | %d |\n| High | %d |\n| Medium | %d |\n| Low | %d |\n\n"
                  crit high med low)
          "## Published evidence\n\n"
          (str/join "\n" (map #(str "- [x] " %) ev))

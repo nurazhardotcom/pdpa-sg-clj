@@ -4,7 +4,8 @@
   clojure.string/replace, keep it boring and easy to audit."
   (:require [babashka.cli    :as cli]
             [clojure.string  :as str]
-            [clojure.java.io :as io]))
+            [clojure.java.io :as io]
+            [pdpa.policy-template :as template]))
 
 (def ^:private policy-dir "policies/")
 
@@ -27,9 +28,7 @@
                         (throw (ex-info (str "template not found: " template-name)
                                         {:name template-name})))
         content       (slurp resource-url)]
-    (reduce-kv (fn [t k v] (str/replace t (str "<<" (clojure.core/name k) ">>") (str v)))
-               content
-               values)))
+    (template/fill-content content values)))
 
 (defn fill-and-write!
   "Fill template `template-name` and write to `out-path`. Returns the out-path."
