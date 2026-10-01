@@ -93,7 +93,11 @@ jobs:
       - name: PDPA audit to SARIF
         run: bb audit . --format sarif --out audit.sarif --exclude test/
 
+      # Code-scanning upload needs security-events:write, which Dependabot's
+      # token does not carry, so it 403s on its own PRs. The SARIF is still
+      # produced above, so the artifact is inspectable in the run log.
       - name: Upload SARIF to code scanning
+        if: github.actor != 'dependabot[bot]'
         uses: github/codeql-action/upload-sarif@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4
         with:
           sarif_file: audit.sarif
